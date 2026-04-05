@@ -5,152 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aaron DeNuto</title>
 
-<!-- Icons -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-
-<style>
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    overflow: hidden;
-    color: white;
-    background: black;
-  }
-
-  /* Background */
-  .bg {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    background: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2000') center/cover no-repeat;
-    filter: blur(6px) grayscale(100%);
-    z-index: -2;
-  }
-
-  .bg::after {
-    content: "";
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.4);
-  }
-
-  /* Navbar */
-  .nav {
-    position: fixed;
-    top: 0;
-    width: 100%;
-    height: 70px;
-    background: black;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 30px;
-    box-sizing: border-box;
-  }
-
-  .left {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-  }
-
-  .profile {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: url('https://via.placeholder.com/100') center/cover no-repeat;
-  }
-
-  .right {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-
-  .right a {
-    color: white;
-    text-decoration: none;
-    font-size: 16px;
-    opacity: 0.8;
-    transition: opacity 0.2s ease;
-  }
-
-  .right a:hover {
-    opacity: 1;
-  }
-
-  .right i {
-    font-size: 18px;
-  }
-
-  /* Hero */
-  .hero {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding-top: 70px;
-    text-align: center;
-  }
-
-  h1 {
-    font-size: clamp(2.5rem, 6vw, 4rem);
-    margin: 0;
-  }
-
-  p {
-    font-size: 1.5rem;
-    opacity: 0.7;
-  }
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
 <div class="bg"></div>
 
-<!-- Navbar -->
 <div class="nav">
   <div class="left">
     <div class="profile"></div>
   </div>
 
   <div class="right">
-  <a href="https://x.com/aarondenuto" target="_blank">
-    <img src="https://cdn.simpleicons.org/x/ffffff" alt="X">
-  </a>
 
-  <a href="https://youtube.com/@aarondenuto" target="_blank">
-    <img src="https://cdn.simpleicons.org/youtube/ff0000" alt="YouTube">
-  </a>
+    <a href="https://x.com/aarondenuto" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/5/57/X_logo_2023_%28white%29.svg" alt="X">
+    </a>
 
-  <a href="https://instagram.com/aarondenuto" target="_blank">
-    <img src="https://cdn.simpleicons.org/instagram/e4405f" alt="Instagram">
-  </a>
+    <a href="https://youtube.com/@aarondenuto" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_Logo_2017.svg" alt="YouTube">
+    </a>
 
-  <a href="https://facebook.com/aarondenuto" target="_blank">
-    <img src="https://cdn.simpleicons.org/facebook/1877f2" alt="Facebook">
-  </a>
+    <a href="https://instagram.com/aarondenuto" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" alt="Instagram">
+    </a>
 
-  <a href="https://tiktok.com/@aarondenuto" target="_blank">
-    <img src="https://cdn.simpleicons.org/tiktok/69c9d0" alt="TikTok">
-  </a>
+    <a href="https://facebook.com/aarondenuto" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg" alt="Facebook">
+    </a>
 
-  <a href="https://linkedin.com/in/aaron-denuto" target="_blank">
-    <img src="https://cdn.simpleicons.org/linkedin/0a66c2" alt="LinkedIn">
-  </a>
+    <a href="https://tiktok.com/@aarondenuto" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/a/a9/TikTok_logo.svg" alt="TikTok">
+    </a>
 
-  <a href="https://github.com/aarondenuto" target="_blank">
-    <img src="https://cdn.simpleicons.org/github/ffffff" alt="GitHub">
-  </a>
+    <a href="https://linkedin.com/in/aaron-denuto" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" alt="LinkedIn">
+    </a>
 
-  <a href="/portfolio/">Portfolio</a>
+    <a href="https://github.com/aarondenuto" target="_blank">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg" alt="GitHub">
+    </a>
+
+    <a href="/portfolio/">Portfolio</a>
+  </div>
 </div>
-</div>
 
-<!-- Hero -->
 <main class="hero">
   <h1>Aaron DeNuto</h1>
   <p>Interactive Portfolio</p>
