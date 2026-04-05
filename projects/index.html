@@ -1,1 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projects — Aaron DeNuto</title>
 
+<style>
+  body {
+    margin: 0;
+    background: #111;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    color: white;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    background: black;
+  }
+
+  .topbar h1 {
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+
+  .menu {
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 15px;
+    padding: 15px;
+  }
+
+  .card {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: 0.4s;
+  }
+
+  /* Hover effect */
+  .card:hover img {
+    transform: scale(1.05);
+    filter: brightness(0.7);
+  }
+
+  .overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 15px;
+    opacity: 0;
+    transition: 0.3s;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  }
+
+  .card:hover .overlay {
+    opacity: 1;
+  }
+
+  .overlay h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+
+  .overlay p {
+    margin: 5px 0 0;
+    font-size: 14px;
+    opacity: 0.8;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <h1>AARON DENUTO</h1>
+  <div class="menu">☰</div>
+</div>
+
+<!-- GRID -->
+<div class="grid">
+
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93">
+    <div class="overlay">
+      <h3>Aroma Therapy</h3>
+      <p>Branding / Design</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1492724441997-5dc865305da7">
+    <div class="overlay">
+      <h3>Art Campaign</h3>
+      <p>Creative Direction</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1520975922284-9e0b6e3c1d3d">
+    <div class="overlay">
+      <h3>Product Shoot</h3>
+      <p>Photography</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1519710164239-da123dc03ef4">
+    <div class="overlay">
+      <h3>Packaging</h3>
+      <p>Industrial Design</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee">
+    <div class="overlay">
+      <h3>Workspace</h3>
+      <p>Concept</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <img src="https://images.unsplash.com/photo-1520975916090-3105956dac38">
+    <div class="overlay">
+      <h3>Fashion</h3>
+      <p>Campaign</p>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
