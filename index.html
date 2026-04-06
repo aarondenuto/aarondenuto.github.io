@@ -9,9 +9,9 @@
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    overflow: hidden;
     color: white;
     background: black;
+    overflow: hidden;
   }
 
   .bg {
@@ -38,10 +38,10 @@
     height: 70px;
     background: white;
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
     padding: 0 30px;
-    box-sizing: border-box;
+    z-index: 10;
   }
 
   .profile {
@@ -53,42 +53,18 @@
 
   .right {
     display: flex;
-    align-items: center;
     gap: 18px;
   }
 
-  .right a {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;   /* forces equal spacing */
-    height: 28px;
-    text-decoration: none;
-  }
-
-  .right img {
-    width: 22px;   /* ALL icons same size */
+  .right a img {
+    width: 22px;
     height: 22px;
-    object-fit: contain;
-    display: block;
-    transition: transform 0.15s ease, opacity 0.2s ease;
-  }
-
-  .right a:hover img {
-    transform: scale(1.15);
-    opacity: 0.9;
   }
 
   .portfolio {
-    width: auto !important;
-    font-size: 14px;
     color: black;
-    opacity: 0.85;
+    text-decoration: none;
     margin-left: 10px;
-  }
-
-  .portfolio:hover {
-    opacity: 1;
   }
 
   .hero {
@@ -99,6 +75,8 @@
     align-items: center;
     padding-top: 70px;
     text-align: center;
+    z-index: 1;
+    position: relative;
   }
 
   h1 {
@@ -107,8 +85,41 @@
   }
 
   p {
-    font-size: 1.5rem;
     opacity: 0.7;
+  }
+
+  .play-btn {
+    margin-top: 20px;
+    padding: 12px 24px;
+    background: white;
+    color: black;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+
+  /* GAME LAYER */
+  .game-container {
+    position: fixed;
+    inset: 0;
+    background: #222;
+    display: none;
+    z-index: 999;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  .exit {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
   }
 </style>
 </head>
@@ -121,44 +132,83 @@
   <div class="profile"></div>
 
   <div class="right">
-
-    <a href="https://x.com/aarondenuto" target="_blank">
-      <img src="assets/X_Icon.svg" alt="X">
-    </a>
-
-    <a href="https://youtube.com/@aarondenuto" target="_blank">
-      <img src="assets/YouTube_Icon.svg" alt="YouTube">
-    </a>
-
-    <a href="https://instagram.com/aarondenuto" target="_blank">
-      <img src="assets/Instagram_Icon.svg" alt="Instagram">
-    </a>
-
-    <a href="https://facebook.com/aarondenuto" target="_blank">
-      <img src="assets/Facebook_Icon.svg" alt="Facebook">
-    </a>
-
-    <a href="https://tiktok.com/@aarondenuto" target="_blank">
-      <img src="assets/TikTok_Icon.svg" alt="TikTok">
-    </a>
-
-    <a href="https://linkedin.com/in/aaron-denuto" target="_blank">
-      <img src="assets/LinkedIn_Icon.svg" alt="LinkedIn">
-    </a>
-
-    <a href="https://github.com/aarondenuto" target="_blank">
-      <img src="assets/GitHub_Icon.svg" alt="GitHub">
-    </a>
-
+    <a href="#"><img src="assets/X_Icon.svg"></a>
+    <a href="#"><img src="assets/YouTube_Icon.svg"></a>
+    <a href="#"><img src="assets/Instagram_Icon.svg"></a>
+    <a href="#"><img src="assets/Facebook_Icon.svg"></a>
+    <a href="#"><img src="assets/TikTok_Icon.svg"></a>
+    <a href="#"><img src="assets/LinkedIn_Icon.svg"></a>
+    <a href="#"><img src="assets/GitHub_Icon.svg"></a>
     <a href="/portfolio/" class="portfolio">Portfolio</a>
-
   </div>
 </div>
 
 <main class="hero">
   <h1>Aaron DeNuto</h1>
   <p>Interactive Portfolio</p>
+  <button class="play-btn" onclick="startGame()">Enter World</button>
 </main>
+
+<!-- GAME OVERLAY -->
+<div class="game-container" id="gameContainer">
+  <button class="exit" onclick="exitGame()">Exit</button>
+  <canvas id="game"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let player = { x: 200, y: 200, size: 20, speed: 3 };
+let keys = {};
+let running = false;
+
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+function startGame() {
+  document.getElementById("gameContainer").style.display = "block";
+  running = true;
+  loop();
+}
+
+function exitGame() {
+  document.getElementById("gameContainer").style.display = "none";
+  running = false;
+}
+
+function update() {
+  if (keys["w"] || keys["ArrowUp"]) player.y -= player.speed;
+  if (keys["s"] || keys["ArrowDown"]) player.y += player.speed;
+  if (keys["a"] || keys["ArrowLeft"]) player.x -= player.speed;
+  if (keys["d"] || keys["ArrowRight"]) player.x += player.speed;
+}
+
+function draw() {
+  ctx.fillStyle = "#3cb043";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = "rgba(0,0,0,0.1)";
+  for (let x = 0; x < canvas.width; x += 40) {
+    for (let y = 0; y < canvas.height; y += 40) {
+      ctx.strokeRect(x, y, 40, 40);
+    }
+  }
+
+  ctx.fillStyle = "blue";
+  ctx.fillRect(player.x, player.y, player.size, player.size);
+}
+
+function loop() {
+  if (!running) return;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+</script>
 
 </body>
 </html>
