@@ -14,7 +14,6 @@
     overflow: hidden;
   }
 
-  /* Background */
   .bg {
     position: fixed;
     inset: 0;
@@ -28,10 +27,8 @@
     position: absolute;
     inset: 0;
     background: rgba(0,0,0,0.4);
-    z-index: -1;
   }
 
-  /* Navbar */
   .nav {
     position: fixed;
     top: 0;
@@ -39,10 +36,9 @@
     height: 70px;
     background: white;
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
     padding: 0 30px;
-    box-sizing: border-box;
     z-index: 10;
   }
 
@@ -55,14 +51,7 @@
 
   .right {
     display: flex;
-    align-items: center;
     gap: 18px;
-  }
-
-  .right a {
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .right img {
@@ -72,12 +61,10 @@
 
   .portfolio {
     color: black;
-    text-decoration: none;
     margin-left: 10px;
-    font-size: 14px;
+    text-decoration: none;
   }
 
-  /* Hero */
   .hero {
     position: relative;
     z-index: 2;
@@ -86,8 +73,6 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding-top: 70px;
-    text-align: center;
   }
 
   h1 {
@@ -109,20 +94,16 @@
     cursor: pointer;
     border-radius: 6px;
     font-size: 16px;
-    transition: transform 0.15s ease, opacity 0.2s ease;
   }
 
-  .play-btn:hover {
-    transform: scale(1.05);
-    opacity: 0.9;
-  }
-
-  /* Game Layer */
+  /* GAME LAYER */
   .game-container {
     position: fixed;
     inset: 0;
     background: #222;
-    display: none;
+    opacity: 0;              /* controlled by mouse distance */
+    pointer-events: none;    /* disabled until clicked */
+    transition: opacity 0.1s linear;
     z-index: 999;
   }
 
@@ -134,11 +115,11 @@
     position: absolute;
     top: 20px;
     right: 20px;
-    z-index: 1000;
     background: white;
     border: none;
     padding: 10px;
     cursor: pointer;
+    z-index: 1000;
   }
 </style>
 </head>
@@ -151,13 +132,13 @@
   <div class="profile"></div>
 
   <div class="right">
-    <a href="https://x.com/aarondenuto" target="_blank"><img src="assets/X_Icon.svg"></a>
-    <a href="https://youtube.com/@aarondenuto" target="_blank"><img src="assets/YouTube_Icon.svg"></a>
-    <a href="https://instagram.com/aarondenuto" target="_blank"><img src="assets/Instagram_Icon.svg"></a>
-    <a href="https://facebook.com/aarondenuto" target="_blank"><img src="assets/Facebook_Icon.svg"></a>
-    <a href="https://tiktok.com/@aarondenuto" target="_blank"><img src="assets/TikTok_Icon.svg"></a>
-    <a href="https://linkedin.com/in/aaron-denuto" target="_blank"><img src="assets/LinkedIn_Icon.svg"></a>
-    <a href="https://github.com/aarondenuto" target="_blank"><img src="assets/GitHub_Icon.svg"></a>
+    <a href="#"><img src="assets/X_Icon.svg"></a>
+    <a href="#"><img src="assets/YouTube_Icon.svg"></a>
+    <a href="#"><img src="assets/Instagram_Icon.svg"></a>
+    <a href="#"><img src="assets/Facebook_Icon.svg"></a>
+    <a href="#"><img src="assets/TikTok_Icon.svg"></a>
+    <a href="#"><img src="assets/LinkedIn_Icon.svg"></a>
+    <a href="#"><img src="assets/GitHub_Icon.svg"></a>
     <a href="/portfolio/" class="portfolio">Portfolio</a>
   </div>
 </div>
@@ -165,7 +146,7 @@
 <main class="hero">
   <h1>Aaron DeNuto</h1>
   <p>Interactive Portfolio</p>
-  <button class="play-btn" onclick="startGame()">Enter World</button>
+  <button class="play-btn" id="playBtn">Enter World</button>
 </main>
 
 <div class="game-container" id="gameContainer">
@@ -174,6 +155,41 @@
 </div>
 
 <script>
+const btn = document.getElementById("playBtn");
+const gameContainer = document.getElementById("gameContainer");
+
+/* --- MOUSE PROXIMITY FADE --- */
+document.addEventListener("mousemove", e => {
+  const rect = btn.getBoundingClientRect();
+  const bx = rect.left + rect.width / 2;
+  const by = rect.top + rect.height / 2;
+
+  const dx = e.clientX - bx;
+  const dy = e.clientY - by;
+  const distance = Math.sqrt(dx*dx + dy*dy);
+
+  const maxDist = 300; // adjust sensitivity
+  let opacity = 1 - (distance / maxDist);
+  opacity = Math.max(0, Math.min(1, opacity));
+
+  gameContainer.style.opacity = opacity;
+});
+
+/* --- CLICK TO ENTER --- */
+btn.addEventListener("click", () => {
+  gameContainer.style.pointerEvents = "auto";
+  gameContainer.style.opacity = 1;
+  running = true;
+  loop();
+});
+
+function exitGame() {
+  gameContainer.style.pointerEvents = "none";
+  gameContainer.style.opacity = 0;
+  running = false;
+}
+
+/* --- GAME --- */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -186,17 +202,6 @@ let running = false;
 
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
-
-function startGame() {
-  document.getElementById("gameContainer").style.display = "block";
-  running = true;
-  loop();
-}
-
-function exitGame() {
-  document.getElementById("gameContainer").style.display = "none";
-  running = false;
-}
 
 function update() {
   if (keys["w"] || keys["ArrowUp"]) player.y -= player.speed;
