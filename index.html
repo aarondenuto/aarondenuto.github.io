@@ -1,7 +1,204 @@
-/* --- PLAYER (inertia-based) --- */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aaron DeNuto</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    color: white;
+    background: black;
+    overflow: hidden;
+  }
+
+  .bg {
+    position: fixed;
+    inset: 0;
+    background: url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2000') center/cover no-repeat;
+    filter: blur(6px) grayscale(100%);
+    z-index: -2;
+  }
+
+  .bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+  }
+
+  .bg-overlay {
+    position: fixed;
+    inset: 0;
+    background: black;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+    transition: opacity 0.1s linear;
+  }
+
+  #ui {
+    transition: opacity 0.4s ease;
+  }
+
+  .nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 70px;
+    background: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    z-index: 10;
+  }
+
+  .profile {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: url('https://via.placeholder.com/100') center/cover no-repeat;
+  }
+
+  .right {
+    display: flex;
+    gap: 18px;
+  }
+
+  .right a {
+    display: inline-block;
+  }
+
+  .right img {
+    width: 22px;
+    height: 22px;
+    transition: transform 0.2s ease;
+  }
+
+  .right a:hover img {
+    transform: scale(1.3);
+  }
+
+  .portfolio {
+    color: black;
+    text-decoration: none;
+    margin-left: 10px;
+  }
+
+  .hero {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    margin: 0;
+  }
+
+  p {
+    opacity: 0.7;
+    font-size: 1.5rem;
+  }
+
+  .play-btn {
+    margin-top: 20px;
+    padding: 12px 24px;
+    background: white;
+    color: black;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+
+  .game-container {
+    position: fixed;
+    inset: 0;
+    background: #444;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: -1;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  .exit {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="bg"></div>
+<div class="bg-overlay" id="bgOverlay"></div>
+
+<div id="ui">
+  <div class="nav">
+    <div class="profile"></div>
+
+    <div class="right">
+      <a href="https://x.com/aarondenuto" target="_blank"><img src="assets/X_Icon.svg"></a>
+      <a href="https://youtube.com/@aarondenuto" target="_blank"><img src="assets/YouTube_Icon.svg"></a>
+      <a href="https://instagram.com/aarondenuto" target="_blank"><img src="assets/Instagram_Icon.svg"></a>
+      <a href="https://facebook.com/aarondenuto" target="_blank"><img src="assets/Facebook_Icon.svg"></a>
+      <a href="https://tiktok.com/@aarondenuto" target="_blank"><img src="assets/TikTok_Icon.svg"></a>
+      <a href="https://linkedin.com/in/aaron-denuto" target="_blank"><img src="assets/LinkedIn_Icon.svg"></a>
+      <a href="https://github.com/aarondenuto" target="_blank"><img src="assets/GitHub_Icon.svg"></a>
+      <a href="/portfolio/" class="portfolio">Portfolio</a>
+    </div>
+  </div>
+
+  <main class="hero">
+    <h1>Aaron DeNuto</h1>
+    <p>Interactive Portfolio</p>
+    <button class="play-btn" id="playBtn">Enter World</button>
+  </main>
+</div>
+
+<div class="game-container" id="gameContainer">
+  <button class="exit" onclick="exitGame()">Exit</button>
+  <canvas id="game"></canvas>
+</div>
+
+<script>
+const btn = document.getElementById("playBtn");
+const gameContainer = document.getElementById("gameContainer");
+const ui = document.getElementById("ui");
+const overlay = document.getElementById("bgOverlay");
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+/* GAME STATE */
+let running = false;
+let keys = {};
+
+/* PLAYER */
 let player = {
-  x: 0,
-  y: 0,
+  x: 1500,
+  y: 1500,
   vx: 0,
   vy: 0,
   size: 20,
@@ -10,108 +207,130 @@ let player = {
   maxSpeed: 4
 };
 
-let keys = {};
-let running = false;
+/* WORLD */
+const world = { width: 3000, height: 3000 };
 
-/* --- INPUT --- */
+/* CAMERA */
+let camera = { x: 0, y: 0 };
+
+/* INPUT */
 document.addEventListener("keydown", e => keys[e.key] = true);
 document.addEventListener("keyup", e => keys[e.key] = false);
 
-/* --- WORLD --- */
-const world = {
-  width: 3000,
-  height: 3000
-};
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && running) exitGame();
+});
 
-/* --- CAMERA --- */
-let camera = { x: 0, y: 0 };
+/* PROXIMITY FADE */
+document.addEventListener("mousemove", (e) => {
+  if (running) return;
 
-/* --- UPDATE --- */
+  const rect = btn.getBoundingClientRect();
+  const bx = rect.left + rect.width / 2;
+  const by = rect.top + rect.height / 2;
+
+  const dx = e.clientX - bx;
+  const dy = e.clientY - by;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+
+  let t = 1 - dist / 300;
+  t = Math.max(0, Math.min(1, t));
+  overlay.style.opacity = t * 0.6;
+});
+
+/* UPDATE */
 function update() {
-  if (!running) return;
-
-  let ax = 0;
-  let ay = 0;
+  let ax = 0, ay = 0;
 
   if (keys["w"] || keys["ArrowUp"]) ay -= player.accel;
   if (keys["s"] || keys["ArrowDown"]) ay += player.accel;
   if (keys["a"] || keys["ArrowLeft"]) ax -= player.accel;
   if (keys["d"] || keys["ArrowRight"]) ax += player.accel;
 
-  // apply acceleration
   player.vx += ax;
   player.vy += ay;
 
-  // clamp speed
-  const speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+  let speed = Math.hypot(player.vx, player.vy);
   if (speed > player.maxSpeed) {
     player.vx = (player.vx / speed) * player.maxSpeed;
     player.vy = (player.vy / speed) * player.maxSpeed;
   }
 
-  // apply friction
   player.vx *= player.friction;
   player.vy *= player.friction;
 
-  // move
   player.x += player.vx;
   player.y += player.vy;
 
-  // bounds
   player.x = Math.max(0, Math.min(world.width, player.x));
   player.y = Math.max(0, Math.min(world.height, player.y));
 
-  // camera follows player (smooth)
-  camera.x += (player.x - camera.x - canvas.width / 2) * 0.1;
-  camera.y += (player.y - camera.y - canvas.height / 2) * 0.1;
+  camera.x += (player.x - camera.x - canvas.width/2) * 0.1;
+  camera.y += (player.y - camera.y - canvas.height/2) * 0.1;
 }
 
-/* --- DRAW --- */
+/* DRAW */
 function draw() {
-  // background
   ctx.fillStyle = "#555";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
   ctx.save();
-
-  // move world relative to camera
   ctx.translate(-camera.x, -camera.y);
 
-  /* --- GROUND (subtle texture, no grid lines) --- */
-  for (let x = 0; x < world.width; x += 100) {
-    for (let y = 0; y < world.height; y += 100) {
-      ctx.fillStyle = (x + y) % 200 === 0 ? "#5a5a5a" : "#585858";
-      ctx.fillRect(x, y, 100, 100);
+  for (let x=0;x<world.width;x+=100){
+    for (let y=0;y<world.height;y+=100){
+      ctx.fillStyle = (x+y)%200===0 ? "#5a5a5a" : "#585858";
+      ctx.fillRect(x,y,100,100);
     }
   }
 
-  /* --- PLAYER --- */
-  ctx.fillStyle = "white";
+  ctx.fillStyle="white";
   ctx.beginPath();
-  ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+  ctx.arc(player.x, player.y, player.size, 0, Math.PI*2);
   ctx.fill();
 
   ctx.restore();
 }
 
-/* --- LOOP (keep your fixed timestep) --- */
-let lastTime = 0;
-const fps = 60;
-const frameDuration = 1000 / fps;
-let accumulator = 0;
+/* LOOP */
+let last=0, acc=0;
+const step=1000/60;
 
-function loop(currentTime) {
-  if (!running) return;
-
-  const delta = currentTime - lastTime;
-  lastTime = currentTime;
-  accumulator += delta;
-
-  while (accumulator >= frameDuration) {
-    update();
-    accumulator -= frameDuration;
-  }
-
+function loop(t){
+  if(!running) return;
+  acc += t-last; last=t;
+  while(acc>=step){ update(); acc-=step; }
   draw();
   requestAnimationFrame(loop);
 }
+
+/* ENTER */
+btn.onclick = () => {
+  gameContainer.style.zIndex = 999;
+  gameContainer.style.pointerEvents = "auto";
+  gameContainer.offsetHeight;
+
+  ui.style.opacity = "0";
+  overlay.style.opacity = "1";
+  gameContainer.style.opacity = "1";
+
+  setTimeout(()=>{
+    running = true;
+    last = performance.now();
+    loop(last);
+  },400);
+};
+
+/* EXIT */
+function exitGame(){
+  running = false;
+  gameContainer.style.opacity = "0";
+  gameContainer.style.pointerEvents = "none";
+  gameContainer.style.zIndex = -1;
+  ui.style.opacity = "1";
+  overlay.style.opacity = "0";
+}
+</script>
+
+</body>
+</html>
