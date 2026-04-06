@@ -31,7 +31,6 @@
     background: rgba(0,0,0,0.4);
   }
 
-  /* Navbar */
   .nav {
     position: fixed;
     top: 0;
@@ -55,26 +54,21 @@
   .right {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 18px;
   }
 
   .right a {
     display: flex;
     align-items: center;
+    justify-content: center;
+    width: 28px;   /* forces equal spacing */
+    height: 28px;
     text-decoration: none;
-    color: black;
-    font-size: 14px;
-    opacity: 0.85;
-    transition: opacity 0.2s ease;
-  }
-
-  .right a:hover {
-    opacity: 1;
   }
 
   .right img {
-    height: 20px;
-    width: 20px;
+    width: 22px;   /* ALL icons same size */
+    height: 22px;
     object-fit: contain;
     display: block;
     transition: transform 0.15s ease, opacity 0.2s ease;
@@ -85,7 +79,18 @@
     opacity: 0.9;
   }
 
-  /* Hero */
+  .portfolio {
+    width: auto !important;
+    font-size: 14px;
+    color: black;
+    opacity: 0.85;
+    margin-left: 10px;
+  }
+
+  .portfolio:hover {
+    opacity: 1;
+  }
+
   .hero {
     height: 100vh;
     display: flex;
@@ -145,7 +150,7 @@
       <img src="assets/GitHub_Icon.svg" alt="GitHub">
     </a>
 
-    <a href="/portfolio/">Portfolio</a>
+    <a href="/portfolio/" class="portfolio">Portfolio</a>
 
   </div>
 </div>
