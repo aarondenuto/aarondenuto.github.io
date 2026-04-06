@@ -61,8 +61,8 @@
 
   .portfolio {
     color: black;
-    margin-left: 10px;
     text-decoration: none;
+    margin-left: 10px;
   }
 
   .hero {
@@ -101,9 +101,9 @@
     position: fixed;
     inset: 0;
     background: #222;
-    opacity: 0;              /* controlled by mouse distance */
-    pointer-events: none;    /* disabled until clicked */
-    transition: opacity 0.1s linear;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
     z-index: 999;
   }
 
@@ -132,13 +132,13 @@
   <div class="profile"></div>
 
   <div class="right">
-    <a href="#"><img src="assets/X_Icon.svg"></a>
-    <a href="#"><img src="assets/YouTube_Icon.svg"></a>
-    <a href="#"><img src="assets/Instagram_Icon.svg"></a>
-    <a href="#"><img src="assets/Facebook_Icon.svg"></a>
-    <a href="#"><img src="assets/TikTok_Icon.svg"></a>
-    <a href="#"><img src="assets/LinkedIn_Icon.svg"></a>
-    <a href="#"><img src="assets/GitHub_Icon.svg"></a>
+    <img src="assets/X_Icon.svg">
+    <img src="assets/YouTube_Icon.svg">
+    <img src="assets/Instagram_Icon.svg">
+    <img src="assets/Facebook_Icon.svg">
+    <img src="assets/TikTok_Icon.svg">
+    <img src="assets/LinkedIn_Icon.svg">
+    <img src="assets/GitHub_Icon.svg">
     <a href="/portfolio/" class="portfolio">Portfolio</a>
   </div>
 </div>
@@ -158,8 +158,10 @@
 const btn = document.getElementById("playBtn");
 const gameContainer = document.getElementById("gameContainer");
 
-/* --- MOUSE PROXIMITY FADE --- */
+/* --- PROXIMITY (MAX 50%) --- */
 document.addEventListener("mousemove", e => {
+  if (gameContainer.dataset.active === "true") return;
+
   const rect = btn.getBoundingClientRect();
   const bx = rect.left + rect.width / 2;
   const by = rect.top + rect.height / 2;
@@ -168,15 +170,16 @@ document.addEventListener("mousemove", e => {
   const dy = e.clientY - by;
   const distance = Math.sqrt(dx*dx + dy*dy);
 
-  const maxDist = 300; // adjust sensitivity
+  const maxDist = 300;
   let opacity = 1 - (distance / maxDist);
-  opacity = Math.max(0, Math.min(1, opacity));
+  opacity = Math.max(0, Math.min(0.5, opacity * 0.5)); // cap at 50%
 
   gameContainer.style.opacity = opacity;
 });
 
-/* --- CLICK TO ENTER --- */
+/* --- CLICK FULL FADE --- */
 btn.addEventListener("click", () => {
+  gameContainer.dataset.active = "true";
   gameContainer.style.pointerEvents = "auto";
   gameContainer.style.opacity = 1;
   running = true;
@@ -184,6 +187,7 @@ btn.addEventListener("click", () => {
 });
 
 function exitGame() {
+  gameContainer.dataset.active = "false";
   gameContainer.style.pointerEvents = "none";
   gameContainer.style.opacity = 0;
   running = false;
