@@ -1,55 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NOM</title>
-
-<style>
-  body {
-    margin: 0;
-    background: #111;
-    color: white;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    padding: 20px;
-  }
-
-  h1 { margin-bottom: 10px; }
-
-  #status {
-    font-size: 14px;
-    opacity: 0.6;
-    margin-bottom: 20px;
-  }
-
-  select {
-    padding: 10px;
-    margin-bottom: 20px;
-    background: #222;
-    color: white;
-    border: none;
-  }
-
-  .meal { margin-bottom: 25px; }
-
-  .item {
-    opacity: 0.85;
-    margin-left: 10px;
-    margin-top: 4px;
-  }
-</style>
-</head>
-
-<body>
-
-<h1>NOM</h1>
-<div id="status">Initializing...</div>
-
-<select id="hallSelect"></select>
-<div id="menu"></div>
-
 <script>
-const PROXY = "https://corsproxy.io/?";
+const PROXY = "https://api.allorigins.win/raw?url=";
 const URL = "https://dining.ucla.edu/menus-at-a-glance/";
 
 let data = [];
@@ -63,46 +13,63 @@ async function loadMenu() {
   try {
     setStatus("Fetching menu...");
 
-    const res = await fetch(PROXY + URL);
+    const res = await fetch(PROXY + encodeURIComponent(URL));
     setStatus("Response status: " + res.status);
 
     const html = await res.text();
-    setStatus("HTML received");
+
+    if (!html.includes("menu")) {
+      setStatus("ERROR: Proxy blocked or invalid HTML");
+      return;
+    }
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
 
-    // DEBUG: check structure
-    console.log(doc);
-
-    const halls = doc.querySelectorAll(".menu-block");
+    // UPDATED SELECTORS (more flexible)
+    const halls = doc.querySelectorAll("h3");
     setStatus("Halls found: " + halls.length);
 
-    if (halls.length === 0) {
-      setStatus("ERROR: No data found (selectors likely broken)");
-      return;
-    }
+    data = [];
 
-    halls.forEach(hall => {
-      const hallName = hall.querySelector("h3")?.innerText.trim();
-      if (!hallName) return;
+    halls.forEach(h3 => {
+      const hallName = h3.innerText.trim();
+
+      // grab next sibling container
+      let container = h3.parentElement;
+      if (!container) return;
 
       const meals = {};
 
-      hall.querySelectorAll(".col-md-4").forEach(col => {
-        const mealName = col.querySelector("h4")?.innerText.trim();
-        if (!mealName) return;
+      container.querySelectorAll("h4").forEach(mealEl => {
+        const mealName = mealEl.innerText.trim();
 
-        const items = [];
-        col.querySelectorAll("li").forEach(li => {
-          items.push(li.innerText.trim());
-        });
+        let items = [];
+        let next = mealEl.nextElementSibling;
 
-        meals[mealName] = items;
+        while (next && next.tagName !== "H4") {
+          if (next.tagName === "UL") {
+            next.querySelectorAll("li").forEach(li => {
+              items.push(li.innerText.trim());
+            });
+          }
+          next = next.nextElementSibling;
+        }
+
+        if (mealName && items.length) {
+          meals[mealName] = items;
+        }
       });
 
-      data.push({ diningHall: hallName, meals });
+      if (Object.keys(meals).length) {
+        data.push({ diningHall: hallName, meals });
+      }
     });
+
+    if (data.length === 0) {
+      setStatus("ERROR: Parsing failed");
+      return;
+    }
 
     initUI();
     setStatus("Loaded successfully");
@@ -154,9 +121,5 @@ function render(index) {
   });
 }
 
-console.log("script loaded");
 loadMenu();
 </script>
-
-</body>
-</html>
