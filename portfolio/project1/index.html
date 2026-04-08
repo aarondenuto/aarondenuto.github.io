@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project One — Aaron DeNuto</title>
+<title>NOM Clone</title>
 
 <style>
   body {
@@ -11,78 +11,118 @@
     background: #111;
     color: white;
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 20px;
   }
 
-  .container {
-    max-width: 900px;
-    margin: auto;
-    padding: 40px 20px;
-  }
+  h1 { margin-bottom: 20px; }
 
-  a {
+  select {
+    padding: 10px;
+    margin-bottom: 20px;
+    background: #222;
     color: white;
-    text-decoration: none;
-    opacity: 0.7;
+    border: none;
   }
 
-  a:hover {
-    opacity: 1;
-  }
+  .meal { margin-bottom: 25px; }
 
-  h1 {
-    margin-top: 10px;
-  }
-
-  .hero {
-    width: 100%;
-    height: 400px;
-    object-fit: cover;
-    margin: 20px 0;
-  }
-
-  .section {
-    margin-top: 30px;
-    line-height: 1.6;
-  }
-
-  ul {
-    padding-left: 20px;
+  .item {
+    opacity: 0.85;
+    margin-left: 10px;
+    margin-top: 4px;
   }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-  <a href="/portfolio/">← Back</a>
+<h1>NOM</h1>
 
-  <h1>Project One</h1>
+<select id="hallSelect"></select>
+<div id="menu"></div>
 
-  <img class="hero" src="https://images.unsplash.com/photo-1509042239860-f550ce710b93">
+<script>
+const PROXY = "https://api.allorigins.win/raw?url=";
+const URL = "https://dining.ucla.edu/menus-at-a-glance/";
 
-  <div class="section">
-    <p>
-      UCLA dining hall tracker that aggregates menus, organizes meals,
-      and allows filtering by dietary preferences.
-    </p>
-  </div>
+let data = [];
 
-  <div class="section">
-    <h3>Features</h3>
-    <ul>
-      <li>Live menu data</li>
-      <li>Meal filtering</li>
-      <li>Dietary tags</li>
-      <li>Minimal UI</li>
-    </ul>
-  </div>
+async function loadMenu() {
+  const res = await fetch(PROXY + encodeURIComponent(URL));
+  const html = await res.text();
 
-  <div class="section">
-    <h3>Stack</h3>
-    <p>HTML, CSS, JavaScript</p>
-  </div>
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
 
-</div>
+  const halls = doc.querySelectorAll(".menu-block");
+
+  halls.forEach(hall => {
+    const hallName = hall.querySelector("h3")?.innerText.trim();
+    if (!hallName) return;
+
+    const meals = {};
+
+    hall.querySelectorAll(".col-md-4").forEach(col => {
+      const mealName = col.querySelector("h4")?.innerText.trim();
+      if (!mealName) return;
+
+      const items = [];
+      col.querySelectorAll("li").forEach(li => {
+        items.push(li.innerText.trim());
+      });
+
+      meals[mealName] = items;
+    });
+
+    data.push({ diningHall: hallName, meals });
+  });
+
+  initUI();
+}
+
+function initUI() {
+  const select = document.getElementById("hallSelect");
+
+  data.forEach((hall, i) => {
+    const option = document.createElement("option");
+    option.value = i;
+    option.textContent = hall.diningHall;
+    select.appendChild(option);
+  });
+
+  render(0);
+
+  select.addEventListener("change", e => {
+    render(e.target.value);
+  });
+}
+
+function render(index) {
+  const hall = data[index];
+  const container = document.getElementById("menu");
+  container.innerHTML = "";
+
+  Object.entries(hall.meals).forEach(([meal, items]) => {
+    const div = document.createElement("div");
+    div.className = "meal";
+
+    const title = document.createElement("h3");
+    title.textContent = meal;
+    div.appendChild(title);
+
+    items.forEach(item => {
+      const el = document.createElement("div");
+      el.className = "item";
+      el.textContent = item;
+      div.appendChild(el);
+    });
+
+    container.appendChild(div);
+  });
+}
+
+loadMenu();
+</script>
 
 </body>
 </html>
