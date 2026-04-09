@@ -477,6 +477,40 @@ socket.on("room_joined", ({ roomId }) => {
   showLobby();
 });
 
+socket.on("joined_midgame", ({ roomId, questionIndex, question, total, state, lastResult }) => {
+  myRoom = roomId;
+  isHost = false;
+  voted = false;
+
+  document.getElementById("q-num").textContent = `Question ${questionIndex + 1} / ${total}`;
+  document.getElementById("q-text").textContent = question;
+
+  const btnY = document.getElementById("btn-yes");
+  const btnN = document.getElementById("btn-no");
+  btnY.classList.remove("selected");
+  btnN.classList.remove("selected");
+  btnY.removeAttribute("disabled");
+  btnN.removeAttribute("disabled");
+  document.getElementById("skip-btn").style.display = "none";
+  document.getElementById("vote-wait").style.display = "none";
+  document.getElementById("result-section").style.display = "none";
+  document.getElementById("host-next-actions").style.display = "none";
+
+  if (state === "result" && lastResult) {
+    const pct = lastResult.total > 0 ? Math.round((lastResult.yes / lastResult.total) * 100) : 0;
+    document.getElementById("res-pct").textContent = pct + "%";
+    document.getElementById("res-count").textContent = `${lastResult.yes}/${lastResult.total}`;
+    document.getElementById("bar-fill").style.width = pct + "%";
+    document.getElementById("result-section").style.display = "block";
+    document.getElementById("next-wait").style.display = "block";
+    voted = true;
+    btnY.setAttribute("disabled", true);
+    btnN.setAttribute("disabled", true);
+  }
+
+  showScreen("screen-game");
+});
+
 socket.on("error", ({ message }) => {
   setError("home-error", message);
   setError("lobby-error", message);
