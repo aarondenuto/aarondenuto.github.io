@@ -650,8 +650,18 @@
     <div class="final-list" id="question-rank-list"></div>
   </div>
 
-  <div style="display:flex;gap:8px;margin-top:4px">
-    <button class="btn" onclick="playAgain()" style="flex:1">Play Again</button>
+  <!-- Play Again opt-in panel (shown after clicking Play Again) -->
+  <div id="play-again-panel" style="display:none;flex-direction:column;gap:10px">
+    <div class="card">
+      <div class="card-label">Waiting to play again</div>
+      <div id="play-again-names" class="player-list"></div>
+      <div class="waiting-text pulsing" id="play-again-wait-msg">Waiting for host to start…</div>
+      <button class="btn" id="launch-btn" onclick="launchPlayAgain()" style="display:none">Start New Game</button>
+    </div>
+  </div>
+
+  <div id="final-actions" style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn" onclick="optInPlayAgain()" style="flex:1">Play Again</button>
     <button class="btn btn-ghost" onclick="goHome()" style="flex:1">Main Menu</button>
   </div>
 </div>
@@ -824,10 +834,24 @@ socket.on("game_over", ({ scores, results }) => {
   showFinal(scores, results);
 });
 
-// Non-host players receive this when the host hits Play Again
+// Server tells us the updated list of who has opted in
+socket.on("play_again_update", ({ optInNames }) => {
+  const panel = document.getElementById("play-again-panel");
+  if (panel.style.display === "none") return; // only update if panel is visible
+  document.getElementById("play-again-names").innerHTML = optInNames.map(n => `
+    <div class="player-item">
+      <div class="player-dot online"></div>
+      <span>${n}</span>
+    </div>
+  `).join("");
+  // Show "Start New Game" button if we're the host (original or promoted)
+  document.getElementById("launch-btn").style.display = isHost ? "block" : "none";
+  document.getElementById("play-again-wait-msg").style.display = isHost ? "none" : "block";
+});
+
+// Redirect: the new game is ready — join it
 socket.on("play_again_redirect", ({ newRoomId }) => {
-  // Auto-join the new room with the same name
-  myRoom = "";
+  myRoom = newRoomId;
   isHost = false;
   currentVote = null;
   socket.emit("join_room", { name: myName, roomId: newRoomId });
@@ -920,15 +944,18 @@ function goHome() {
   showScreen("screen-home");
 }
 
-function playAgain() {
-  if (!myName) { goHome(); return; }
-  // Host tells the server to create a new room and broadcast code to all old players
-  if (isHost) {
-    socket.emit("play_again", { roomId: myRoom });
-  } else {
-    // Non-host: go home and wait — the play_again_redirect event will auto-join them
-    goHome();
-  }
+function optInPlayAgain() {
+  if (!myName || !myRoom) { goHome(); return; }
+  // Hide the action buttons, show the waiting panel
+  document.getElementById("final-actions").style.display = "none";
+  document.getElementById("play-again-panel").style.display = "flex";
+  document.getElementById("launch-btn").style.display = isHost ? "block" : "none";
+  document.getElementById("play-again-wait-msg").style.display = isHost ? "none" : "block";
+  socket.emit("opt_in_play_again", { roomId: myRoom });
+}
+
+function launchPlayAgain() {
+  socket.emit("launch_play_again", { roomId: myRoom });
 }
 
 // ── UI HELPERS ───────────────────────────────────────────────────────────────
@@ -1015,8 +1042,12 @@ function updatePips(voted) {
 }
 
 function showFinal(scores, results) {
-  // Reset to scores tab
+  // Reset to scores tab and play-again panel
   switchTab('scores');
+  document.getElementById("play-again-panel").style.display = "none";
+  document.getElementById("final-actions").style.display = "flex";
+  document.getElementById("play-again-names").innerHTML = "";
+  document.getElementById("launch-btn").style.display = "none";
 
   const list = document.getElementById("final-list");
   const rankClass = (i) => i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
