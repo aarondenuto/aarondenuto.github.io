@@ -616,11 +616,19 @@
     <div id="game-player-list"></div>
   </div>
 
-  <div style="display:flex;gap:8px;margin-top:4px">
-  <button class="btn-sm" id="skip-btn" onclick="skipQuestion()" style="display:none">Skip</button>
-  <button class="btn-sm" id="end-btn" onclick="endGame()" style="display:none">End Game</button>
-  <button class="btn-sm" onclick="leaveRoom()">Leave Room</button>
-</div>
+  <div style="display:flex;gap:8px;margin-top:4px;align-items:center;flex-wrap:wrap">
+    <button class="btn-sm" id="skip-btn" onclick="skipQuestion()" style="display:none">Skip</button>
+    <button class="btn-sm" id="end-btn" onclick="endGame()" style="display:none">End Game</button>
+    <button class="btn-sm" onclick="leaveRoom()">Leave Room</button>
+    <!-- Host-only mid-game shuffle toggle -->
+    <div id="midgame-shuffle-row" style="display:none;align-items:center;gap:8px;margin-left:auto">
+      <span style="font-size:11px;color:var(--muted);letter-spacing:0.1em">Shuffle</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="midgame-shuffle-toggle" onchange="toggleMidgameShuffle()">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+  </div>
 </div>
 
 <!-- ── FINAL ── -->
@@ -751,11 +759,11 @@ socket.on("room_update", ({ players }) => {
     if (rb.classList.contains("visible")) {
       document.getElementById("host-next-actions").style.display = "flex";
       document.getElementById("next-wait").style.display = "none";
-      // Which button? We can't know isLast from here easily; show next-btn and let next event clarify
       document.getElementById("next-btn").style.display = "block";
     }
     document.getElementById("skip-btn").style.display = "block";
     document.getElementById("end-btn").style.display = "block";
+    document.getElementById("midgame-shuffle-row").style.display = "flex";
   }
 
   // Rebuild pip count with current total
@@ -764,6 +772,11 @@ socket.on("room_update", ({ players }) => {
 
 socket.on("game_started", () => {
   document.getElementById("game-room-code").textContent = myRoom;
+  document.getElementById("midgame-shuffle-row").style.display = isHost ? "flex" : "none";
+  // Sync the toggle state with whatever was set in lobby
+  if (isHost) {
+    document.getElementById("midgame-shuffle-toggle").checked = document.getElementById("random-toggle").checked;
+  }
   showScreen("screen-game");
 });
 
@@ -786,6 +799,7 @@ function applyNewQuestion(question, index, total) {
   document.getElementById("vote-area").style.display = "";
   document.getElementById("skip-btn").style.display = isHost ? "inline-block" : "none";
   document.getElementById("end-btn").style.display  = isHost ? "inline-block" : "none";
+  document.getElementById("midgame-shuffle-row").style.display = isHost ? "flex" : "none";
   document.getElementById("vote-progress").style.display = "flex";
   rebuildPips(totalPlayers);
   updatePips(0);
@@ -808,6 +822,20 @@ socket.on("game_over", ({ scores, results }) => {
   gameResults = results || [];
   gameScores = scores || [];
   showFinal(scores, results);
+});
+
+// Non-host players receive this when the host hits Play Again
+socket.on("play_again_redirect", ({ newRoomId }) => {
+  // Auto-join the new room with the same name
+  myRoom = "";
+  isHost = false;
+  currentVote = null;
+  socket.emit("join_room", { name: myName, roomId: newRoomId });
+});
+
+// Server confirms shuffle mode was updated
+socket.on("shuffle_updated", ({ randomOrder }) => {
+  document.getElementById("midgame-shuffle-toggle").checked = randomOrder;
 });
 
 // ── ACTIONS ─────────────────────────────────────────────────────────────────
@@ -859,6 +887,11 @@ function nextRound() {
 function skipQuestion() {
   socket.emit("skip_question", { roomId: myRoom });
 }
+
+function toggleMidgameShuffle() {
+  const on = document.getElementById("midgame-shuffle-toggle").checked;
+  socket.emit("set_shuffle", { roomId: myRoom, shuffle: on });
+}
   
 function endGame() {
   socket.emit("end_game", { roomId: myRoom });
@@ -869,6 +902,10 @@ function leaveRoom() {
   myRoom = "";
   isHost = false;
   currentVote = null;
+  // Keep name filled in
+  document.getElementById("host-name").value = myName;
+  document.getElementById("join-name").value = myName;
+  document.getElementById("join-code").value = "";
   showScreen("screen-home");
 }
 
@@ -885,9 +922,13 @@ function goHome() {
 
 function playAgain() {
   if (!myName) { goHome(); return; }
-  isHost = true;
-  currentVote = null;
-  socket.emit("create_room", { name: myName });
+  // Host tells the server to create a new room and broadcast code to all old players
+  if (isHost) {
+    socket.emit("play_again", { roomId: myRoom });
+  } else {
+    // Non-host: go home and wait — the play_again_redirect event will auto-join them
+    goHome();
+  }
 }
 
 // ── UI HELPERS ───────────────────────────────────────────────────────────────
