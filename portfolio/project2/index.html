@@ -10,7 +10,6 @@
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
 <style>
-
   :root {
     --bg: #0a0a0a;
     --surface: #111;
@@ -26,11 +25,13 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  html, body { height: 100%; overscroll-behavior: none; }
+
   body {
     background: var(--bg);
     color: var(--text);
     font-family: 'DM Mono', monospace;
-    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -51,8 +52,15 @@
     pointer-events: none;
   }
 
+  /* Screens that overflow naturally scroll; fixed-height screens stay locked */
   .screen { display: none; width: 100%; max-width: 480px; }
   .screen.active { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Game + lobby don't need scroll — content fits on one screen */
+  #screen-game.active, #screen-lobby.active {
+    max-height: 100dvh;
+    overflow: hidden;
+  }
 
   /* ── TYPOGRAPHY ── */
   .logo {
@@ -122,6 +130,7 @@
   }
   .btn:hover { background: #f5ff70; transform: translateY(-1px); }
   .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 
   .btn-ghost {
     background: transparent;
@@ -147,6 +156,15 @@
   }
   .btn-sm:hover { color: var(--text); border-color: #444; }
 
+  /* Suppress hover effects on touch devices — prevents ghost highlight after tap */
+  @media (hover: none) {
+    .vote-half.yes:hover { background: var(--surface) !important; border-color: var(--border) !important; }
+    .vote-half.no:hover  { background: var(--surface) !important; border-color: var(--border) !important; }
+    .btn:hover           { background: var(--accent) !important; transform: none !important; }
+    .btn-ghost:hover     { background: transparent !important; }
+    .btn-sm:hover        { color: var(--muted) !important; border-color: var(--border) !important; }
+  }
+
   .host-actions { display: flex; gap: 8px; }
   .host-actions .btn { flex: 1; }
 
@@ -165,7 +183,7 @@
     color: var(--accent);
   }
 
-  /* ── PLAYER LIST (lobby + game) ── */
+  /* ── PLAYER LIST ── */
   .player-list { display: flex; flex-direction: column; gap: 6px; }
 
   .player-item {
@@ -180,8 +198,7 @@
   }
 
   .player-dot {
-    width: 7px;
-    height: 7px;
+    width: 7px; height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
     transition: background 0.3s;
@@ -213,8 +230,7 @@
 
   .toggle-switch {
     position: relative;
-    width: 40px;
-    height: 22px;
+    width: 40px; height: 22px;
     flex-shrink: 0;
   }
   .toggle-switch input { opacity: 0; width: 0; height: 0; }
@@ -265,12 +281,7 @@
     letter-spacing: 0.04em;
   }
 
-  /* ── VOTE BUTTONS ──
-     Track: 100% wide, flex row.
-     Default: each half is flex 1 (50% each).
-     Voted: selected half grows to flex 2 (100%), other shrinks to flex 0 (0%).
-     No translateX needed — pure flex width transition.
-  */
+  /* ── VOTE BUTTONS ── */
   .vote-area {
     height: 100px;
     border-radius: var(--radius);
@@ -279,8 +290,7 @@
   }
 
   .vote-track {
-    width: 100%;
-    height: 100%;
+    width: 100%; height: 100%;
     display: flex;
   }
 
@@ -300,6 +310,7 @@
     user-select: none;
     overflow: hidden;
     white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .vote-half.yes { background: var(--surface); color: var(--green); border-color: var(--border); }
@@ -308,15 +319,12 @@
   .vote-half.yes:hover { background: rgba(61,220,132,0.08);  border-color: var(--green); }
   .vote-half.no:hover  { background: rgba(255,77,109,0.08);  border-color: var(--red); }
 
-  /* voted YES: YES expands to full, NO collapses to nothing */
   .vote-track.voted-yes .vote-half.yes { flex: 2; background: rgba(61,220,132,0.18); border-color: var(--green); }
   .vote-track.voted-yes .vote-half.no  { flex: 0; }
+  .vote-track.voted-no  .vote-half.no  { flex: 2; background: rgba(255,77,109,0.18); border-color: var(--red); }
+  .vote-track.voted-no  .vote-half.yes { flex: 0; }
 
-  /* voted NO: NO expands to full, YES collapses to nothing */
-  .vote-track.voted-no .vote-half.no  { flex: 2; background: rgba(255,77,109,0.18); border-color: var(--red); }
-  .vote-track.voted-no .vote-half.yes { flex: 0; }
-
-  .vote-area.locked .vote-half { cursor: default; }
+  .vote-area.locked .vote-half { cursor: default; pointer-events: none; }
 
   /* ── VOTE COUNT INDICATOR ── */
   .vote-progress {
@@ -337,7 +345,6 @@
   .vote-pip.done { background: var(--accent); }
 
   /* ── RESULT SECTION ── */
-  /* Wrap result + next-btn in one container that fades/slides together */
   .result-block {
     display: flex;
     flex-direction: column;
@@ -430,12 +437,10 @@
     font-size: 1.8rem;
     color: var(--accent);
   }
-  .score-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
 
-  /* ── FINAL SCREEN TABS ── */
+  /* ── TABS ── */
   .tab-bar {
     display: flex;
-    gap: 0;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
@@ -485,7 +490,7 @@
     flex-shrink: 0;
   }
 
-  /* misc */
+  /* ── MISC ── */
   .error-msg {
     font-size: 12px;
     color: var(--accent2);
@@ -507,7 +512,6 @@
     flex-direction: column;
     gap: 8px;
   }
-  .game-player-panel .card-label { margin-bottom: 2px; }
   .game-player-row {
     display: flex; align-items: center; gap: 8px; font-size: 12px;
   }
@@ -572,21 +576,18 @@
   <div class="question-num" id="q-num">Question 1 / 100</div>
   <div class="question-text" id="q-text">Loading…</div>
 
-  <!-- Sliding vote buttons: NO on left (red), YES on right (green) -->
   <div class="vote-area" id="vote-area">
     <div class="vote-track" id="vote-track">
-        <div class="vote-half yes" id="btn-yes" onclick="vote('yes')">YES</div>
-      <div class="vote-half no"  id="btn-no"  onclick="vote('no')">NO</div>
+      <div class="vote-half yes" onclick="vote('yes')">YES</div>
+      <div class="vote-half no"  onclick="vote('no')">NO</div>
     </div>
   </div>
 
-  <!-- Vote progress indicator -->
   <div class="vote-progress" id="vote-progress">
     <span id="vote-count-text">0/0 answered</span>
     <div class="vote-pip-row" id="vote-pips"></div>
   </div>
 
-  <!-- Result block (fades in/out as one unit) -->
   <div class="result-block" id="result-block">
     <div class="result-bar-wrap">
       <div class="result-label">
@@ -599,7 +600,6 @@
       <div class="bar-track"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
     </div>
 
-    <!-- Host controls inside result-block so they animate together -->
     <div class="host-actions" id="host-next-actions" style="display:none">
       <button class="btn" id="next-btn" onclick="nextRound()" style="display:none">Next Question</button>
       <button class="btn btn-red" id="finish-btn" onclick="nextRound()" style="display:none">See Results</button>
@@ -607,7 +607,6 @@
     <div class="waiting-text pulsing" id="next-wait" style="display:none">Waiting for host…</div>
   </div>
 
-  <!-- Player connection panel -->
   <div class="game-player-panel">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
       <div class="card-label">Players</div>
@@ -617,10 +616,10 @@
   </div>
 
   <div style="display:flex;gap:8px;margin-top:4px;align-items:center;flex-wrap:wrap">
+    <button class="btn-sm" id="end-question-btn" onclick="endQuestion()" style="display:none">End Question</button>
     <button class="btn-sm" id="skip-btn" onclick="skipQuestion()" style="display:none">Skip</button>
     <button class="btn-sm" id="end-btn" onclick="endGame()" style="display:none">End Game</button>
     <button class="btn-sm" onclick="leaveRoom()">Leave Room</button>
-    <!-- Host-only mid-game shuffle toggle -->
     <div id="midgame-shuffle-row" style="display:none;align-items:center;gap:8px;margin-left:auto">
       <span style="font-size:11px;color:var(--muted);letter-spacing:0.1em">Shuffle</span>
       <label class="toggle-switch">
@@ -640,49 +639,45 @@
     <button class="tab-btn" id="tab-questions-btn" onclick="switchTab('questions')">Questions</button>
   </div>
 
-  <!-- Scores tab -->
   <div class="tab-panel active" id="tab-scores">
     <div class="final-list" id="final-list"></div>
   </div>
 
-  <!-- Questions tab -->
   <div class="tab-panel" id="tab-questions">
     <div class="final-list" id="question-rank-list"></div>
   </div>
 
-  <!-- Play Again opt-in panel (shown after clicking Play Again) -->
-  <div id="play-again-panel" style="display:none;flex-direction:column;gap:10px">
-    <div class="card">
-      <div class="card-label">Waiting to play again</div>
-      <div id="play-again-names" class="player-list"></div>
-      <div class="waiting-text pulsing" id="play-again-wait-msg">Waiting for host to start…</div>
-      <button class="btn" id="launch-btn" onclick="launchPlayAgain()" style="display:none">Start New Game</button>
+  <!-- Play Again panel — always visible on end screen -->
+  <div class="card" id="play-again-panel">
+    <div class="card-label">Play Again</div>
+    <!-- Names of people who've opted in appear here -->
+    <div id="play-again-names" class="player-list"></div>
+    <!-- Shown after opting in, while waiting for others -->
+    <div class="waiting-text pulsing" id="play-again-wait-msg" style="display:none">Waiting for others to join…</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="play-again-btn" onclick="optInPlayAgain()" style="flex:1">Play Again</button>
+      <button class="btn btn-ghost" id="leave-play-again-btn" onclick="leavePlayAgain()" style="flex:1;display:none">Leave</button>
     </div>
-  </div>
-
-  <div id="final-actions" style="display:flex;gap:8px;margin-top:4px">
-    <button class="btn" onclick="optInPlayAgain()" style="flex:1">Play Again</button>
-    <button class="btn btn-ghost" onclick="goHome()" style="flex:1">Main Menu</button>
+    <button class="btn btn-ghost" onclick="goHome()">Main Menu</button>
   </div>
 </div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────────────────────────
-const BACKEND = "https://have-you-ever-backend.onrender.com"; // ← replace with your Render URL
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const BACKEND = "https://have-you-ever-backend.onrender.com";
 
-// ── STATE ──────────────────────────────────────────────────────────────────
+// ── STATE ────────────────────────────────────────────────────────────────────
 const socket = io(BACKEND, { transports: ["websocket", "polling"] });
 
-let myName = "";
-let myRoom = "";
-let isHost = false;
-let currentVote = null;   // 'yes' | 'no' | null
-let totalPlayers = 0;
-let gameResults = [];     // store results for question ranking tab
-let gameScores = [];      // store scores for play again
-let pendingQuestion = null; // queued new_question received while tabbed out
+let myName        = "";
+let myRoom        = "";
+let isHost        = false;
+let currentVote   = null;
+let totalPlayers  = 0;
+let gameResults   = [];
+let pendingQuestion = null; // new_question received while tabbed out
 
-// ── CONNECTION ─────────────────────────────────────────────────────────────
+// ── CONNECTION ───────────────────────────────────────────────────────────────
 socket.on("connect", () => {
   document.getElementById("conn-status").textContent = "Connected ✓";
   document.getElementById("conn-status").style.color = "#3ddc84";
@@ -695,7 +690,7 @@ socket.on("disconnect", () => {
   document.getElementById("conn-status").textContent = "Disconnected";
 });
 
-// ── ROOM EVENTS ────────────────────────────────────────────────────────────
+// ── ROOM EVENTS ──────────────────────────────────────────────────────────────
 socket.on("room_created", ({ roomId }) => {
   myRoom = roomId;
   isHost = true;
@@ -704,6 +699,7 @@ socket.on("room_created", ({ roomId }) => {
 
 socket.on("room_joined", ({ roomId }) => {
   myRoom = roomId;
+  isHost = false;
   showLobby();
 });
 
@@ -715,12 +711,12 @@ socket.on("joined_midgame", ({ roomId, questionIndex, question, total, state, la
   setQuestion(question, questionIndex, total);
   resetVoteUI();
   hideResult();
-
   document.getElementById("skip-btn").style.display = "none";
   document.getElementById("end-btn").style.display = "none";
+  document.getElementById("end-question-btn").style.display = "none";
+  document.getElementById("midgame-shuffle-row").style.display = "none";
 
   if (state === "result" && lastResult) {
-    // Show result; hide vote area entirely for mid-joiner
     document.getElementById("vote-area").style.display = "none";
     document.getElementById("vote-progress").style.display = "none";
     showResult(lastResult.yes, lastResult.total, lastResult.isLast, false);
@@ -740,8 +736,8 @@ socket.on("error", ({ message }) => {
 });
 
 socket.on("room_update", ({ players }) => {
-  totalPlayers = players.length;
-  // Lobby player list
+  totalPlayers = players.filter(p => p.connected).length;
+
   document.getElementById("player-count").textContent = players.length;
   document.getElementById("player-list").innerHTML = players.map(p => `
     <div class="player-item">
@@ -751,7 +747,6 @@ socket.on("room_update", ({ players }) => {
     </div>
   `).join("");
 
-  // Game player panel
   document.getElementById("game-player-list").innerHTML = players.map(p => `
     <div class="game-player-row">
       <div class="player-dot ${p.connected ? 'online' : 'offline'}"></div>
@@ -760,45 +755,42 @@ socket.on("room_update", ({ players }) => {
     </div>
   `).join("");
 
-  // If I just became host (promoted)
+  // Promoted to host mid-game?
   const me = players.find(p => p.id === socket.id);
   if (me && me.isHost && !isHost) {
     isHost = true;
-    // Show host controls if we're in result state
     const rb = document.getElementById("result-block");
     if (rb.classList.contains("visible")) {
       document.getElementById("host-next-actions").style.display = "flex";
       document.getElementById("next-wait").style.display = "none";
       document.getElementById("next-btn").style.display = "block";
     }
+    document.getElementById("end-question-btn").style.display = "block";
     document.getElementById("skip-btn").style.display = "block";
     document.getElementById("end-btn").style.display = "block";
     document.getElementById("midgame-shuffle-row").style.display = "flex";
   }
 
-  // Rebuild pip count with current total
   rebuildPips(totalPlayers);
 });
 
 socket.on("game_started", () => {
   document.getElementById("game-room-code").textContent = myRoom;
   document.getElementById("midgame-shuffle-row").style.display = isHost ? "flex" : "none";
-  // Sync the toggle state with whatever was set in lobby
+  document.getElementById("end-question-btn").style.display = isHost ? "inline-block" : "none";
   if (isHost) {
-    document.getElementById("midgame-shuffle-toggle").checked = document.getElementById("random-toggle").checked;
+    document.getElementById("midgame-shuffle-toggle").checked =
+      document.getElementById("random-toggle").checked;
   }
   showScreen("screen-game");
 });
 
 socket.on("new_question", ({ question, index, total }) => {
   currentVote = null;
-
-  // If the page is hidden (tabbed out), queue the update and apply when visible
   if (document.hidden) {
     pendingQuestion = { question, index, total };
     return;
   }
-
   applyNewQuestion(question, index, total);
 });
 
@@ -807,10 +799,11 @@ function applyNewQuestion(question, index, total) {
   resetVoteUI();
   hideResult();
   document.getElementById("vote-area").style.display = "";
+  document.getElementById("vote-progress").style.display = "flex";
+  document.getElementById("end-question-btn").style.display = isHost ? "inline-block" : "none";
   document.getElementById("skip-btn").style.display = isHost ? "inline-block" : "none";
   document.getElementById("end-btn").style.display  = isHost ? "inline-block" : "none";
   document.getElementById("midgame-shuffle-row").style.display = isHost ? "flex" : "none";
-  document.getElementById("vote-progress").style.display = "flex";
   rebuildPips(totalPlayers);
   updatePips(0);
   pendingQuestion = null;
@@ -824,45 +817,36 @@ socket.on("vote_count", ({ voted, total }) => {
 });
 
 socket.on("round_result", ({ yes, total, isLast }) => {
+  document.getElementById("end-question-btn").style.display = "none";
   document.getElementById("skip-btn").style.display = "none";
   showResult(yes, total, isLast, isHost);
 });
 
 socket.on("game_over", ({ scores, results }) => {
   gameResults = results || [];
-  gameScores = scores || [];
   showFinal(scores, results);
 });
 
-// Server tells us the updated list of who has opted in
+// First player opted in — a new lobby exists; update our "Play Again" button
+socket.on("play_again_available", ({ hostName }) => {
+  const btn = document.getElementById("play-again-btn");
+  if (!btn.disabled) {
+    // We haven't opted in yet — update button text to indicate a game is waiting
+    btn.textContent = "Join New Game";
+  }
+});
+
+// Opt-in list changed (someone left the waiting panel)
 socket.on("play_again_update", ({ optInNames }) => {
-  const panel = document.getElementById("play-again-panel");
-  if (panel.style.display === "none") return; // only update if panel is visible
-  document.getElementById("play-again-names").innerHTML = optInNames.map(n => `
-    <div class="player-item">
-      <div class="player-dot online"></div>
-      <span>${n}</span>
-    </div>
-  `).join("");
-  // Show "Start New Game" button if we're the host (original or promoted)
-  document.getElementById("launch-btn").style.display = isHost ? "block" : "none";
-  document.getElementById("play-again-wait-msg").style.display = isHost ? "none" : "block";
+  renderPlayAgainNames(optInNames);
 });
 
-// Redirect: the new game is ready — join it
-socket.on("play_again_redirect", ({ newRoomId }) => {
-  myRoom = newRoomId;
-  isHost = false;
-  currentVote = null;
-  socket.emit("join_room", { name: myName, roomId: newRoomId });
-});
-
-// Server confirms shuffle mode was updated
+// Server confirms shuffle mode updated
 socket.on("shuffle_updated", ({ randomOrder }) => {
   document.getElementById("midgame-shuffle-toggle").checked = randomOrder;
 });
 
-// ── ACTIONS ─────────────────────────────────────────────────────────────────
+// ── ACTIONS ──────────────────────────────────────────────────────────────────
 function createRoom() {
   const name = document.getElementById("host-name").value.trim();
   if (!name) return setError("home-error", "Enter your name");
@@ -888,16 +872,14 @@ function startGame() {
 function vote(choice) {
   const area = document.getElementById("vote-area");
   if (area.classList.contains("locked")) return;
-
   if (currentVote === choice) {
-    // Deselect — return to center
     currentVote = null;
     document.getElementById("vote-track").className = "vote-track";
-    socket.emit("submit_vote", { roomId: myRoom, vote: choice }); // server toggles to null
+    socket.emit("submit_vote", { roomId: myRoom, vote: choice });
   } else {
     currentVote = choice;
-    const track = document.getElementById("vote-track");
-    track.className = "vote-track " + (choice === "yes" ? "voted-yes" : "voted-no");
+    document.getElementById("vote-track").className =
+      "vote-track " + (choice === "yes" ? "voted-yes" : "voted-no");
     socket.emit("submit_vote", { roomId: myRoom, vote: choice });
   }
 }
@@ -908,6 +890,10 @@ function nextRound() {
   socket.emit("next_round", { roomId: myRoom });
 }
 
+function endQuestion() {
+  socket.emit("end_question", { roomId: myRoom });
+}
+
 function skipQuestion() {
   socket.emit("skip_question", { roomId: myRoom });
 }
@@ -916,7 +902,7 @@ function toggleMidgameShuffle() {
   const on = document.getElementById("midgame-shuffle-toggle").checked;
   socket.emit("set_shuffle", { roomId: myRoom, shuffle: on });
 }
-  
+
 function endGame() {
   socket.emit("end_game", { roomId: myRoom });
 }
@@ -926,7 +912,6 @@ function leaveRoom() {
   myRoom = "";
   isHost = false;
   currentVote = null;
-  // Keep name filled in
   document.getElementById("host-name").value = myName;
   document.getElementById("join-name").value = myName;
   document.getElementById("join-code").value = "";
@@ -934,10 +919,11 @@ function leaveRoom() {
 }
 
 function goHome() {
+  // Don't emit leave_room here — player may still be in the "over" room
+  // which is fine to leave silently (they'll disconnect naturally)
   myRoom = "";
   isHost = false;
   currentVote = null;
-  // Preserve name from last session
   document.getElementById("host-name").value = myName;
   document.getElementById("join-name").value = myName;
   document.getElementById("join-code").value = "";
@@ -946,16 +932,23 @@ function goHome() {
 
 function optInPlayAgain() {
   if (!myName || !myRoom) { goHome(); return; }
-  // Hide the action buttons, show the waiting panel
-  document.getElementById("final-actions").style.display = "none";
-  document.getElementById("play-again-panel").style.display = "flex";
-  document.getElementById("launch-btn").style.display = isHost ? "block" : "none";
-  document.getElementById("play-again-wait-msg").style.display = isHost ? "none" : "block";
+  const btn = document.getElementById("play-again-btn");
+  btn.disabled = true;
+  btn.textContent = "Joining…";
+  document.getElementById("leave-play-again-btn").style.display = "";
+  document.getElementById("play-again-wait-msg").style.display = "block";
   socket.emit("opt_in_play_again", { roomId: myRoom });
 }
 
-function launchPlayAgain() {
-  socket.emit("launch_play_again", { roomId: myRoom });
+function leavePlayAgain() {
+  socket.emit("leave_play_again", { roomId: myRoom });
+  // Reset panel back to initial state
+  const btn = document.getElementById("play-again-btn");
+  btn.disabled = false;
+  btn.textContent = "Play Again";
+  document.getElementById("leave-play-again-btn").style.display = "none";
+  document.getElementById("play-again-wait-msg").style.display = "none";
+  renderPlayAgainNames([]);
 }
 
 // ── UI HELPERS ───────────────────────────────────────────────────────────────
@@ -987,8 +980,7 @@ function lockVoteArea() {
 }
 
 function hideResult() {
-  const rb = document.getElementById("result-block");
-  rb.classList.remove("visible");
+  document.getElementById("result-block").classList.remove("visible");
   document.getElementById("host-next-actions").style.display = "none";
   document.getElementById("next-btn").style.display = "none";
   document.getElementById("finish-btn").style.display = "none";
@@ -999,8 +991,6 @@ function showResult(yes, total, isLast, hostControls) {
   const pct = total > 0 ? Math.round((yes / total) * 100) : 0;
   document.getElementById("res-pct").textContent = pct + "%";
   document.getElementById("res-count").textContent = `${yes}/${total}`;
-
-  // Animate bar after brief frame
   requestAnimationFrame(() => {
     document.getElementById("bar-fill").style.width = pct + "%";
   });
@@ -1014,16 +1004,12 @@ function showResult(yes, total, isLast, hostControls) {
     document.getElementById("next-wait").style.display = "block";
   }
 
-  // Lock vote buttons
   lockVoteArea();
-
-  // Fade in the whole result block together
   requestAnimationFrame(() => {
     document.getElementById("result-block").classList.add("visible");
   });
 }
 
-// Vote pip helpers
 function rebuildPips(count) {
   const container = document.getElementById("vote-pips");
   container.innerHTML = "";
@@ -1035,39 +1021,48 @@ function rebuildPips(count) {
 }
 
 function updatePips(voted) {
-  const pips = document.querySelectorAll(".vote-pip");
-  pips.forEach((pip, i) => {
+  document.querySelectorAll(".vote-pip").forEach((pip, i) => {
     pip.classList.toggle("done", i < voted);
   });
 }
 
-function showFinal(scores, results) {
-  // Reset to scores tab and play-again panel
-  switchTab('scores');
-  document.getElementById("play-again-panel").style.display = "none";
-  document.getElementById("final-actions").style.display = "flex";
-  document.getElementById("play-again-names").innerHTML = "";
-  document.getElementById("launch-btn").style.display = "none";
+function renderPlayAgainNames(names) {
+  document.getElementById("play-again-names").innerHTML = names.map(n => `
+    <div class="player-item">
+      <div class="player-dot online"></div>
+      <span>${n}</span>
+    </div>
+  `).join("");
+}
 
-  const list = document.getElementById("final-list");
-  const rankClass = (i) => i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
-  list.innerHTML = scores.map((s, i) => `
+function showFinal(scores, results) {
+  switchTab("scores");
+
+  // Reset play-again panel
+  const btn = document.getElementById("play-again-btn");
+  btn.disabled = false;
+  btn.textContent = "Play Again";
+  document.getElementById("leave-play-again-btn").style.display = "none";
+  document.getElementById("play-again-wait-msg").style.display = "none";
+  renderPlayAgainNames([]);
+
+  // Scores tab
+  const rankClass = i => i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
+  document.getElementById("final-list").innerHTML = scores.map((s, i) => `
     <div class="score-item">
       <div class="score-rank ${rankClass(i)}">${i + 1}</div>
       <div class="score-name">${s.name}</div>
-      <div>
-        <div class="score-val">${s.score}%</div>
-      </div>
+      <div class="score-val">${s.score}%</div>
     </div>
   `).join("");
 
-  // Build question ranking tab
+  // Questions tab
   const qList = document.getElementById("question-rank-list");
   if (results && results.length > 0) {
     const sorted = [...results].sort((a, b) => {
-      const pctA = a.total > 0 ? a.yes / a.total : 0;
-      const pctB = b.total > 0 ? b.yes / b.total : 0;
-      return pctB - pctA;
+      const pA = a.total > 0 ? a.yes / a.total : 0;
+      const pB = b.total > 0 ? b.yes / b.total : 0;
+      return pB - pA;
     });
     qList.innerHTML = sorted.map((r, i) => {
       const pct = r.total > 0 ? Math.round((r.yes / r.total) * 100) : 0;
@@ -1076,8 +1071,7 @@ function showFinal(scores, results) {
           <div class="q-rank-num">${i + 1}</div>
           <div class="q-rank-text">${r.question}</div>
           <div class="q-rank-pct">${pct}%</div>
-        </div>
-      `;
+        </div>`;
     }).join("");
   } else {
     qList.innerHTML = '<div class="waiting-text">No questions answered yet.</div>';
@@ -1098,12 +1092,9 @@ function setError(id, msg) {
   if (el) { el.textContent = msg; setTimeout(() => el.textContent = "", 3000); }
 }
 
-// ── FONT LOAD / VISIBILITY ───────────────────────────────────────────────────
-document.fonts.ready.then(() => {
-  document.body.classList.add("fonts-ready");
-});
+// ── FONT LOAD + VISIBILITY CHANGE ────────────────────────────────────────────
+document.fonts.ready.then(() => document.body.classList.add("fonts-ready"));
 
-// Apply queued question when user tabs back in
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && pendingQuestion) {
     const { question, index, total } = pendingQuestion;
