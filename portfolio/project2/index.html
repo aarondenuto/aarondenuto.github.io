@@ -559,9 +559,10 @@
   </div>
 
   <div style="display:flex;gap:8px;margin-top:4px">
-    <button class="btn-sm" id="skip-btn" onclick="skipQuestion()" style="display:none">Skip</button>
-    <button class="btn-sm" onclick="leaveRoom()">Leave Room</button>
-  </div>
+  <button class="btn-sm" id="skip-btn" onclick="skipQuestion()" style="display:none">Skip</button>
+  <button class="btn-sm" id="end-btn" onclick="endGame()" style="display:none">End Game</button>
+  <button class="btn-sm" onclick="leaveRoom()">Leave Room</button>
+</div>
 </div>
 
 <!-- ── FINAL ── -->
@@ -619,6 +620,7 @@ socket.on("joined_midgame", ({ roomId, questionIndex, question, total, state, la
   hideResult();
 
   document.getElementById("skip-btn").style.display = "none";
+  document.getElementById("end-btn").style.display = "none";
   document.getElementById("vote-progress").style.display = "flex";
 
   if (state === "result" && lastResult) {
@@ -670,6 +672,7 @@ socket.on("room_update", ({ players }) => {
       document.getElementById("next-btn").style.display = "block";
     }
     document.getElementById("skip-btn").style.display = "block";
+    document.getElementById("end-btn").style.display = "block";
   }
 
   // Rebuild pip count with current total
@@ -687,6 +690,7 @@ socket.on("new_question", ({ question, index, total }) => {
   resetVoteUI();
   hideResult();
   document.getElementById("skip-btn").style.display = isHost ? "inline-block" : "none";
+  document.getElementById("end-btn").style.display  = isHost ? "inline-block" : "none";
   document.getElementById("vote-progress").style.display = "flex";
   rebuildPips(totalPlayers);
   updatePips(0);
@@ -756,6 +760,10 @@ function nextRound() {
 
 function skipQuestion() {
   socket.emit("skip_question", { roomId: myRoom });
+}
+  
+function endGame() {
+  socket.emit("end_game", { roomId: myRoom });
 }
 
 function leaveRoom() {
