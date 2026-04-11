@@ -4,10 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Have You Ever — Aaron DeNuto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=block">
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap');
 
   :root {
     --bg: #0a0a0a;
@@ -34,7 +36,10 @@
     align-items: center;
     justify-content: center;
     padding: 20px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
   }
+  body.fonts-ready { opacity: 1; }
 
   body::before {
     content: "";
@@ -427,6 +432,59 @@
   }
   .score-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
 
+  /* ── FINAL SCREEN TABS ── */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.12em;
+    padding: 12px;
+    transition: all 0.15s ease;
+  }
+  .tab-btn:not(:last-child) { border-right: 1px solid var(--border); }
+  .tab-btn.active { background: var(--surface); color: var(--accent); }
+  .tab-btn:hover:not(.active) { background: #1a1a1a; color: var(--text); }
+
+  .tab-panel { display: none; flex-direction: column; gap: 8px; }
+  .tab-panel.active { display: flex; }
+
+  .q-rank-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12px;
+  }
+  .q-rank-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.2rem;
+    color: var(--muted);
+    width: 24px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .q-rank-text { flex: 1; line-height: 1.4; color: var(--text); }
+  .q-rank-pct {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
   /* misc */
   .error-msg {
     font-size: 12px;
@@ -567,9 +625,27 @@
 
 <!-- ── FINAL ── -->
 <div class="screen" id="screen-final">
-  <div class="logo" style="font-size:2.5rem">Scores</div>
-  <div class="final-list" id="final-list"></div>
-  <button class="btn btn-ghost" onclick="goHome()" style="margin-top:8px">Play Again</button>
+  <div class="logo" style="font-size:2.5rem">Results</div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-scores-btn" onclick="switchTab('scores')">Scores</button>
+    <button class="tab-btn" id="tab-questions-btn" onclick="switchTab('questions')">Questions</button>
+  </div>
+
+  <!-- Scores tab -->
+  <div class="tab-panel active" id="tab-scores">
+    <div class="final-list" id="final-list"></div>
+  </div>
+
+  <!-- Questions tab -->
+  <div class="tab-panel" id="tab-questions">
+    <div class="final-list" id="question-rank-list"></div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn" onclick="playAgain()" style="flex:1">Play Again</button>
+    <button class="btn btn-ghost" onclick="goHome()" style="flex:1">Main Menu</button>
+  </div>
 </div>
 
 <script>
@@ -584,6 +660,9 @@ let myRoom = "";
 let isHost = false;
 let currentVote = null;   // 'yes' | 'no' | null
 let totalPlayers = 0;
+let gameResults = [];     // store results for question ranking tab
+let gameScores = [];      // store scores for play again
+let pendingQuestion = null; // queued new_question received while tabbed out
 
 // ── CONNECTION ─────────────────────────────────────────────────────────────
 socket.on("connect", () => {
@@ -621,12 +700,16 @@ socket.on("joined_midgame", ({ roomId, questionIndex, question, total, state, la
 
   document.getElementById("skip-btn").style.display = "none";
   document.getElementById("end-btn").style.display = "none";
-  document.getElementById("vote-progress").style.display = "flex";
 
   if (state === "result" && lastResult) {
-    // Show result; lock voting
+    // Show result; hide vote area entirely for mid-joiner
+    document.getElementById("vote-area").style.display = "none";
+    document.getElementById("vote-progress").style.display = "none";
     showResult(lastResult.yes, lastResult.total, lastResult.isLast, false);
     lockVoteArea();
+  } else {
+    document.getElementById("vote-area").style.display = "";
+    document.getElementById("vote-progress").style.display = "flex";
   }
 
   document.getElementById("game-room-code").textContent = myRoom;
@@ -686,15 +769,28 @@ socket.on("game_started", () => {
 
 socket.on("new_question", ({ question, index, total }) => {
   currentVote = null;
+
+  // If the page is hidden (tabbed out), queue the update and apply when visible
+  if (document.hidden) {
+    pendingQuestion = { question, index, total };
+    return;
+  }
+
+  applyNewQuestion(question, index, total);
+});
+
+function applyNewQuestion(question, index, total) {
   setQuestion(question, index, total);
   resetVoteUI();
   hideResult();
+  document.getElementById("vote-area").style.display = "";
   document.getElementById("skip-btn").style.display = isHost ? "inline-block" : "none";
   document.getElementById("end-btn").style.display  = isHost ? "inline-block" : "none";
   document.getElementById("vote-progress").style.display = "flex";
   rebuildPips(totalPlayers);
   updatePips(0);
-});
+  pendingQuestion = null;
+}
 
 socket.on("vote_count", ({ voted, total }) => {
   totalPlayers = total;
@@ -708,8 +804,10 @@ socket.on("round_result", ({ yes, total, isLast }) => {
   showResult(yes, total, isLast, isHost);
 });
 
-socket.on("game_over", ({ scores }) => {
-  showFinal(scores);
+socket.on("game_over", ({ scores, results }) => {
+  gameResults = results || [];
+  gameScores = scores || [];
+  showFinal(scores, results);
 });
 
 // ── ACTIONS ─────────────────────────────────────────────────────────────────
@@ -778,10 +876,18 @@ function goHome() {
   myRoom = "";
   isHost = false;
   currentVote = null;
-  document.getElementById("host-name").value = "";
-  document.getElementById("join-name").value = "";
+  // Preserve name from last session
+  document.getElementById("host-name").value = myName;
+  document.getElementById("join-name").value = myName;
   document.getElementById("join-code").value = "";
   showScreen("screen-home");
+}
+
+function playAgain() {
+  if (!myName) { goHome(); return; }
+  isHost = true;
+  currentVote = null;
+  socket.emit("create_room", { name: myName });
 }
 
 // ── UI HELPERS ───────────────────────────────────────────────────────────────
@@ -867,7 +973,10 @@ function updatePips(voted) {
   });
 }
 
-function showFinal(scores) {
+function showFinal(scores, results) {
+  // Reset to scores tab
+  switchTab('scores');
+
   const list = document.getElementById("final-list");
   const rankClass = (i) => i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
   list.innerHTML = scores.map((s, i) => `
@@ -875,17 +984,60 @@ function showFinal(scores) {
       <div class="score-rank ${rankClass(i)}">${i + 1}</div>
       <div class="score-name">${s.name}</div>
       <div>
-        <div class="score-val">${s.score}</div>
+        <div class="score-val">${s.score}%</div>
       </div>
     </div>
   `).join("");
+
+  // Build question ranking tab
+  const qList = document.getElementById("question-rank-list");
+  if (results && results.length > 0) {
+    const sorted = [...results].sort((a, b) => {
+      const pctA = a.total > 0 ? a.yes / a.total : 0;
+      const pctB = b.total > 0 ? b.yes / b.total : 0;
+      return pctB - pctA;
+    });
+    qList.innerHTML = sorted.map((r, i) => {
+      const pct = r.total > 0 ? Math.round((r.yes / r.total) * 100) : 0;
+      return `
+        <div class="q-rank-item">
+          <div class="q-rank-num">${i + 1}</div>
+          <div class="q-rank-text">${r.question}</div>
+          <div class="q-rank-pct">${pct}%</div>
+        </div>
+      `;
+    }).join("");
+  } else {
+    qList.innerHTML = '<div class="waiting-text">No questions answered yet.</div>';
+  }
+
   showScreen("screen-final");
+}
+
+function switchTab(tab) {
+  document.getElementById("tab-scores-btn").classList.toggle("active", tab === "scores");
+  document.getElementById("tab-questions-btn").classList.toggle("active", tab === "questions");
+  document.getElementById("tab-scores").classList.toggle("active", tab === "scores");
+  document.getElementById("tab-questions").classList.toggle("active", tab === "questions");
 }
 
 function setError(id, msg) {
   const el = document.getElementById(id);
   if (el) { el.textContent = msg; setTimeout(() => el.textContent = "", 3000); }
 }
+
+// ── FONT LOAD / VISIBILITY ───────────────────────────────────────────────────
+document.fonts.ready.then(() => {
+  document.body.classList.add("fonts-ready");
+});
+
+// Apply queued question when user tabs back in
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && pendingQuestion) {
+    const { question, index, total } = pendingQuestion;
+    applyNewQuestion(question, index, total);
+  }
+});
 </script>
 </body>
 </html>
