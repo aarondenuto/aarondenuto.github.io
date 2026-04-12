@@ -56,7 +56,8 @@
   .screen { display: none; width: 100%; max-width: 480px; }
   .screen.active { display: flex; flex-direction: column; gap: 16px; }
 
-  /* Game screen: fixed to viewport so player-join/leave doesn't shift layout or resize buttons */
+  /* Lobby, Game, Final: all fixed to viewport and internally scrollable */
+  #screen-lobby.active,
   #screen-game.active {
     height: 100dvh;
     overflow-y: auto;
@@ -73,23 +74,23 @@
   /* Final screen: fixed to viewport, flex column with tab content filling middle */
   #screen-final.active {
     height: 100dvh;
-    overflow: hidden;  /* outer container never scrolls — children scroll internally */
+    overflow: hidden;
     position: fixed;
     top: 0;
     left: 50%;
     transform: translateX(-50%);
     padding: 16px 20px;
     box-sizing: border-box;
-    display: flex;
+    display: flex !important;  /* override .screen.active */
     flex-direction: column;
     gap: 16px;
   }
 
   /* Tab panel content scrolls internally, never resizes the outer screen */
   .tab-panel-scroll {
-    flex: 1;
+    flex: 1 1 0;           /* grow to fill, shrink, base 0 so it doesn't use content height */
+    min-height: 0;         /* critical: allow flex child to shrink below content size */
     overflow-y: auto;
-    min-height: 0;  /* critical: allow flex child to shrink below content size */
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
@@ -97,26 +98,40 @@
   .tab-panel-scroll::-webkit-scrollbar-track { background: transparent; }
   .tab-panel-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 
-  /* Play-again panel is fixed-size at the bottom — never grows to push content up */
+  /* Play-again panel — fixed height, scrollable name list inside */
   #play-again-panel {
     flex-shrink: 0;
+    overflow: hidden;
   }
-
-  /* ── SCROLLBAR ── */
-  /* Thin minimal scrollbar for desktop — hidden on mobile (they use native overlay scrollbars) */
-  #screen-game, #screen-final, .game-player-scroll {
+  #play-again-names {
+    max-height: 88px;   /* ~3 player rows */
+    overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
   }
+  #play-again-names::-webkit-scrollbar { width: 3px; }
+  #play-again-names::-webkit-scrollbar-track { background: transparent; }
+  #play-again-names::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  /* ── SCROLLBAR ── */
+  /* Thin minimal scrollbar for desktop — hidden on mobile (they use native overlay scrollbars) */
+  #screen-lobby, #screen-game, #screen-final, .game-player-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  #screen-lobby::-webkit-scrollbar,
   #screen-game::-webkit-scrollbar,
   #screen-final::-webkit-scrollbar,
   .game-player-scroll::-webkit-scrollbar { width: 3px; }
+  #screen-lobby::-webkit-scrollbar-track,
   #screen-game::-webkit-scrollbar-track,
   #screen-final::-webkit-scrollbar-track,
   .game-player-scroll::-webkit-scrollbar-track { background: transparent; }
+  #screen-lobby::-webkit-scrollbar-thumb,
   #screen-game::-webkit-scrollbar-thumb,
   #screen-final::-webkit-scrollbar-thumb,
   .game-player-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+  #screen-lobby::-webkit-scrollbar-thumb:hover,
   #screen-game::-webkit-scrollbar-thumb:hover,
   #screen-final::-webkit-scrollbar-thumb:hover,
   .game-player-scroll::-webkit-scrollbar-thumb:hover { background: #333; }
@@ -841,6 +856,8 @@ let pendingResult  = null;   // round_result received while tabbed out
 // Track per-player answered state during a question round
 // Map of playerId → boolean (true = has answered)
 let playerAnsweredMap = {};
+// Order in which players answered — first answered = index 0
+let playerAnswerOrder = [];
 // Last known player/spectator lists for re-renders
 let lastPlayers = [];
 let lastSpectators = [];
@@ -853,11 +870,18 @@ function renderGamePlayerList(players, spectators) {
   const p = lastPlayers;
   const s = lastSpectators;
 
-  // During a question: sort waiting (unanswered) to top, answered to bottom
+  // During a question: sort waiting (unanswered) to top, answered to bottom in reverse-answer order
   let sorted = [...p];
   if (inQuestionRound) {
     const waiting = sorted.filter(pl => !playerAnsweredMap[pl.id]);
-    const answered = sorted.filter(pl => playerAnsweredMap[pl.id]);
+    // answered: sort by answer order descending (most recent = lowest index in answered group)
+    const answered = sorted
+      .filter(pl => playerAnsweredMap[pl.id])
+      .sort((a, b) => {
+        const ai = playerAnswerOrder.indexOf(a.id);
+        const bi = playerAnswerOrder.indexOf(b.id);
+        return bi - ai; // most recently answered first
+      });
     sorted = [...waiting, ...answered];
   }
 
@@ -1040,6 +1064,7 @@ socket.on("game_started", () => {
 socket.on("new_question", ({ question, index, total }) => {
   currentVote = null;
   playerAnsweredMap = {};
+  playerAnswerOrder = [];
   inQuestionRound = true;
   if (document.hidden) {
     pendingQuestion = { question, index, total };
@@ -1053,6 +1078,7 @@ function applyNewQuestion(question, index, total) {
   resetVoteUI();
   hideResult();
   playerAnsweredMap = {};
+  playerAnswerOrder = [];
   inQuestionRound = true;
   // Spectators never see the vote buttons
   document.getElementById("vote-area").style.display = isSpectator ? "none" : "";
@@ -1072,31 +1098,43 @@ socket.on("vote_count", ({ voted, total, answeredIds }) => {
   rebuildPips(total);
   updatePips(voted);
   document.getElementById("vote-count-text").textContent = `${voted}/${total} answered`;
-  // Update answered map if server sends ids; otherwise infer from voted count
   if (answeredIds) {
+    // Rebuild answered map
     playerAnsweredMap = {};
     answeredIds.forEach(id => { playerAnsweredMap[id] = true; });
+    // Keep existing order for already-answered players, append newly answered ones
+    playerAnswerOrder = [
+      ...playerAnswerOrder.filter(id => answeredIds.includes(id)),
+      ...answeredIds.filter(id => !playerAnswerOrder.includes(id))
+    ];
   }
   renderGamePlayerList(null, null);
 });
 
 socket.on("round_result", ({ yes, total, isLast }) => {
+  // Always update logical state regardless of visibility
+  inQuestionRound = false;
+  pendingQuestion = null;  // result supersedes any pending question
+
+  if (document.hidden) {
+    pendingResult = { yes, total, isLast };
+    return;
+  }
+  applyRoundResult(yes, total, isLast);
+});
+
+function applyRoundResult(yes, total, isLast) {
   document.getElementById("end-question-btn").style.display = "none";
   document.getElementById("skip-btn").style.display = "none";
   inQuestionRound = false;
   renderGamePlayerList(null, null);
-  // Hide vote area for players who didn't answer before time ran out
+  // Hide vote area for players who didn't answer before the round ended
   if (!isSpectator && currentVote === null) {
     document.getElementById("vote-area").style.display = "none";
     document.getElementById("vote-progress").style.display = "none";
   }
-  if (document.hidden) {
-    pendingQuestion = null;  // result supersedes any pending question
-    pendingResult = { yes, total, isLast };
-    return;
-  }
   showResult(yes, total, isLast, isHost);
-});
+}
 
 socket.on("game_over", ({ scores, results }) => {
   gameResults = results || [];
@@ -1174,6 +1212,7 @@ function vote(choice) {
     yesBtn.classList.remove("selected");
     noBtn.classList.remove("selected");
     playerAnsweredMap[socket.id] = false;
+    playerAnswerOrder = playerAnswerOrder.filter(id => id !== socket.id);
     socket.emit("submit_vote", { roomId: myRoom, vote: choice });
   } else {
     currentVote = choice;
@@ -1182,6 +1221,7 @@ function vote(choice) {
     yesBtn.classList.toggle("selected", choice === "yes");
     noBtn.classList.toggle("selected",  choice === "no");
     playerAnsweredMap[socket.id] = true;
+    if (!playerAnswerOrder.includes(socket.id)) playerAnswerOrder.push(socket.id);
     socket.emit("submit_vote", { roomId: myRoom, vote: choice });
   }
   renderGamePlayerList(null, null);
@@ -1449,20 +1489,11 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) return;
   const onGameScreen = document.getElementById("screen-game").classList.contains("active");
 
-  // Result always takes priority — it is more recent than any pending question
-  if (pendingResult) {
-    const { yes, total, isLast } = pendingResult;
-    pendingResult = null;
+  if (onGameScreen && myRoom) {
+    // Always ask server for current state on tab-back.
+    // Clear any buffered events first — server response is authoritative.
     pendingQuestion = null;
-    document.getElementById("end-question-btn").style.display = "none";
-    document.getElementById("skip-btn").style.display = "none";
-    showResult(yes, total, isLast, isHost);
-  } else if (pendingQuestion) {
-    const { question, index, total } = pendingQuestion;
-    applyNewQuestion(question, index, total);
-  } else if (onGameScreen && myRoom) {
-    // No pending events — ask server for current state in case we missed events
-    // (common on desktop where socket polling may have paused while tabbed out)
+    pendingResult = null;
     socket.emit("request_state", { roomId: myRoom });
   }
   // Always re-render the player list when tabbing back in
