@@ -56,12 +56,6 @@
   .screen { display: none; width: 100%; max-width: 480px; }
   .screen.active { display: flex; flex-direction: column; gap: 16px; }
 
-  /* Game + lobby don't need scroll — content fits on one screen */
-  #screen-game.active, #screen-lobby.active {
-    max-height: 100dvh;
-    overflow: hidden;
-  }
-
   /* ── TYPOGRAPHY ── */
   .logo {
     font-family: 'Bebas Neue', sans-serif;
@@ -156,13 +150,14 @@
   }
   .btn-sm:hover { color: var(--text); border-color: #444; }
 
-  /* Touch active states for vote buttons — give tactile feedback on mobile */
+  /* Touch active states — applied by JS on touchstart for instant mobile feedback */
+  .vote-half.yes.pressing { background: rgba(61,220,132,0.25) !important; border-color: var(--green) !important; }
+  .vote-half.no.pressing  { background: rgba(255,77,109,0.25) !important; border-color: var(--red)   !important; }
+
+  /* Suppress lingering hover styles on touch devices */
   @media (hover: none) {
-    .vote-half:active.yes { background: rgba(61,220,132,0.18) !important; border-color: var(--green) !important; }
-    .vote-half:active.no  { background: rgba(255,77,109,0.18) !important; border-color: var(--red) !important; }
-    /* Suppress lingering hover styles that get stuck after tap */
-    .vote-half.yes:hover:not(:active) { background: var(--surface) !important; border-color: var(--border) !important; }
-    .vote-half.no:hover:not(:active)  { background: var(--surface) !important; border-color: var(--border) !important; }
+    .vote-half.yes:hover:not(.pressing) { background: var(--surface) !important; border-color: var(--border) !important; }
+    .vote-half.no:hover:not(.pressing)  { background: var(--surface) !important; border-color: var(--border) !important; }
     .btn:hover:not(:active)      { background: var(--accent) !important; transform: none !important; }
     .btn-ghost:hover:not(:active){ background: transparent !important; }
     .btn-sm:hover:not(:active)   { color: var(--muted) !important; border-color: var(--border) !important; }
@@ -416,8 +411,8 @@
   .score-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 12px 14px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -427,19 +422,39 @@
     font-family: 'Bebas Neue', sans-serif;
     font-size: 1.4rem;
     color: var(--muted);
-    width: 28px;
+    width: 24px;
     text-align: right;
     flex-shrink: 0;
   }
   .score-rank.gold   { color: #ffd700; }
   .score-rank.silver { color: #c0c0c0; }
   .score-rank.bronze { color: #cd7f32; }
-  .score-name { flex: 1; }
-  .score-val {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.8rem;
-    color: var(--accent);
+  .score-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .score-cols {
+    display: flex;
+    gap: 14px;
+    flex-shrink: 0;
+    align-items: center;
   }
+  .score-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .score-col-label {
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .score-col-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--text);
+    line-height: 1;
+  }
+  .score-col-val.accent { color: var(--accent); }
 
   /* ── TABS ── */
   .tab-bar {
@@ -598,8 +613,16 @@
 
   <div class="vote-area" id="vote-area">
     <div class="vote-track" id="vote-track">
-      <div class="vote-half yes" onclick="vote('yes')">YES</div>
-      <div class="vote-half no"  onclick="vote('no')">NO</div>
+      <div class="vote-half yes"
+           onclick="vote('yes')"
+           ontouchstart="this.classList.add('pressing')"
+           ontouchend="this.classList.remove('pressing')"
+           ontouchcancel="this.classList.remove('pressing')">YES</div>
+      <div class="vote-half no"
+           onclick="vote('no')"
+           ontouchstart="this.classList.add('pressing')"
+           ontouchend="this.classList.remove('pressing')"
+           ontouchcancel="this.classList.remove('pressing')">NO</div>
     </div>
   </div>
 
@@ -1167,13 +1190,26 @@ function showFinal(scores, results) {
 
   // Scores tab
   const rankClass = i => i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : "";
-  document.getElementById("final-list").innerHTML = scores.map((s, i) => `
+  document.getElementById("final-list").innerHTML = scores.map((s, i) => {
+    const asked = s.questionsAsked || 0;
+    const yes = s.yesCount || 0;
+    const noCount = asked - yes;
+    return `
     <div class="score-item">
       <div class="score-rank ${rankClass(i)}">${i + 1}</div>
       <div class="score-name">${s.name}</div>
-      <div class="score-val">${s.score}%</div>
-    </div>
-  `).join("");
+      <div class="score-cols">
+        <div class="score-col">
+          <div class="score-col-label">Yes / Total</div>
+          <div class="score-col-val">${yes}/${asked}</div>
+        </div>
+        <div class="score-col">
+          <div class="score-col-label">Score</div>
+          <div class="score-col-val accent">${s.score}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
 
   // Questions tab
   const qList = document.getElementById("question-rank-list");
