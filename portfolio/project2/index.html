@@ -852,6 +852,7 @@ let totalPlayers  = 0;
 let gameResults   = [];
 let pendingQuestion = null;  // new_question received while tabbed out
 let pendingResult  = null;   // round_result received while tabbed out
+let currentQuestionIndex = -1; // tracks which question we're on to detect re-deliveries
 
 // Track per-player answered state during a question round
 // Map of playerId → boolean (true = has answered)
@@ -1062,15 +1063,42 @@ socket.on("game_started", () => {
 });
 
 socket.on("new_question", ({ question, index, total }) => {
-  currentVote = null;
-  playerAnsweredMap = {};
-  playerAnswerOrder = [];
-  inQuestionRound = true;
+  const isNewQuestion = index !== currentQuestionIndex;
+  currentQuestionIndex = index;
+
+  if (isNewQuestion) {
+    currentVote = null;
+    playerAnsweredMap = {};
+    playerAnswerOrder = [];
+    inQuestionRound = true;
+  }
+
   if (document.hidden) {
-    pendingQuestion = { question, index, total };
+    // Only buffer if it's genuinely new — re-deliveries of current question skip buffer too
+    if (isNewQuestion) pendingQuestion = { question, index, total };
     return;
   }
-  applyNewQuestion(question, index, total);
+
+  if (isNewQuestion) {
+    applyNewQuestion(question, index, total);
+  } else {
+    // Re-delivery of current question (request_state response while vote is in progress)
+    // Restore UI state without clearing the player's vote
+    setQuestion(question, index, total);
+    document.getElementById("vote-area").style.display = isSpectator ? "none" : "";
+    document.getElementById("vote-progress").style.display = "flex";
+    // Re-apply the voted track class and selected button state
+    if (currentVote) {
+      document.getElementById("vote-track").className =
+        "vote-track " + (currentVote === "yes" ? "voted-yes" : "voted-no");
+      const yesBtn = document.querySelector(".vote-half.yes");
+      const noBtn  = document.querySelector(".vote-half.no");
+      if (yesBtn) yesBtn.classList.toggle("selected", currentVote === "yes");
+      if (noBtn)  noBtn.classList.toggle("selected",  currentVote === "no");
+    }
+    rebuildPips(totalPlayers);
+    renderGamePlayerList(null, null);
+  }
 });
 
 function applyNewQuestion(question, index, total) {
@@ -1271,6 +1299,7 @@ function leaveRoom() {
   isHost = false;
   isSpectator = false;
   currentVote = null;
+  currentQuestionIndex = -1;
   document.getElementById("host-name").value = myName;
   document.getElementById("join-name").value = myName;
   document.getElementById("join-code").value = "";
@@ -1282,6 +1311,7 @@ function goHome() {
   isHost = false;
   isSpectator = false;
   currentVote = null;
+  currentQuestionIndex = -1;
   document.getElementById("host-name").value = myName;
   document.getElementById("join-name").value = myName;
   document.getElementById("join-code").value = "";
