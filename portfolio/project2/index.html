@@ -853,6 +853,7 @@ let gameResults   = [];
 let pendingQuestion = null;  // new_question received while tabbed out
 let pendingResult  = null;   // round_result received while tabbed out
 let currentQuestionIndex = -1; // tracks which question we're on to detect re-deliveries
+let questionUIApplied = false; // true only after applyNewQuestion ran for currentQuestionIndex
 
 // Track per-player answered state during a question round
 // Map of playerId → boolean (true = has answered)
@@ -1064,9 +1065,10 @@ socket.on("game_started", () => {
 
 socket.on("new_question", ({ question, index, total }) => {
   const isNewQuestion = index !== currentQuestionIndex;
-  currentQuestionIndex = index;
 
   if (isNewQuestion) {
+    currentQuestionIndex = index;
+    questionUIApplied = false;
     currentVote = null;
     playerAnsweredMap = {};
     playerAnswerOrder = [];
@@ -1074,20 +1076,18 @@ socket.on("new_question", ({ question, index, total }) => {
   }
 
   if (document.hidden) {
-    // Only buffer if it's genuinely new — re-deliveries of current question skip buffer too
     if (isNewQuestion) pendingQuestion = { question, index, total };
     return;
   }
 
-  if (isNewQuestion) {
+  if (!questionUIApplied) {
+    // New question, or re-delivery for a question whose UI was never applied (tabbed out before it rendered)
     applyNewQuestion(question, index, total);
   } else {
-    // Re-delivery of current question (request_state response while vote is in progress)
-    // Restore UI state without clearing the player's vote
+    // True re-delivery: same question, UI already applied — restore voted visual state only
     setQuestion(question, index, total);
     document.getElementById("vote-area").style.display = isSpectator ? "none" : "";
     document.getElementById("vote-progress").style.display = "flex";
-    // Re-apply the voted track class and selected button state
     if (currentVote) {
       document.getElementById("vote-track").className =
         "vote-track " + (currentVote === "yes" ? "voted-yes" : "voted-no");
@@ -1102,6 +1102,7 @@ socket.on("new_question", ({ question, index, total }) => {
 });
 
 function applyNewQuestion(question, index, total) {
+  questionUIApplied = true;
   setQuestion(question, index, total);
   resetVoteUI();
   hideResult();
@@ -1300,6 +1301,7 @@ function leaveRoom() {
   isSpectator = false;
   currentVote = null;
   currentQuestionIndex = -1;
+  questionUIApplied = false;
   document.getElementById("host-name").value = myName;
   document.getElementById("join-name").value = myName;
   document.getElementById("join-code").value = "";
@@ -1312,6 +1314,7 @@ function goHome() {
   isSpectator = false;
   currentVote = null;
   currentQuestionIndex = -1;
+  questionUIApplied = false;
   document.getElementById("host-name").value = myName;
   document.getElementById("join-name").value = myName;
   document.getElementById("join-code").value = "";
